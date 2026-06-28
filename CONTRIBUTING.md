@@ -11,7 +11,6 @@ We're building a local-first, hybrid AI agent that puts privacy and control back
 - [Development Setup](#development-setup)
 - [Pull Request Process](#pull-request-process)
 - [Style Guidelines](#style-guidelines)
-- [Community](#community)
 
 ---
 
