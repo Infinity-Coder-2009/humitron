@@ -1,0 +1,20 @@
+# Humitron Configuration
+# Copy this file to config.local.yaml to override settings
+
+model: "llama3.2"
+workspace_path: "."
+max_steps: 20
+temperature: 0.7
+ollama_base_url: "http://localhost:11434"
+
+# Web search settings
+web_search_max_results: 5
+web_search_region: "wt-wt"  # Worldwide
+
+# Safety settings
+enable_safety_checks: true
+allowed_directories: []  # Empty = workspace only
+
+# Memory settings
+max_context_tokens: 8000
+summarize_threshold: 6000
