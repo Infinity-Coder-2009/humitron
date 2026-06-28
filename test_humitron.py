@@ -19,7 +19,7 @@ def test_read_file():
     assert isinstance(result, ToolResult)
     assert result.success, f"Expected success, got error: {result.error}"
     assert "Humitron" in result.output, "README should contain 'Humitron'"
-    print("✅ read_file works correctly")
+    print("read_file works correctly")
 
 
 def test_bash_execute():
@@ -29,7 +29,7 @@ def test_bash_execute():
     assert isinstance(result, ToolResult)
     assert result.success, f"Expected success, got error: {result.error}"
     assert "README.md" in result.output, "ls should show README.md"
-    print("✅ bash_execute works correctly")
+    print("bash_execute works correctly")
 
 
 def test_bash_execute_safety():
@@ -39,7 +39,7 @@ def test_bash_execute_safety():
     assert isinstance(result, ToolResult)
     assert not result.success, "Dangerous command should be blocked"
     assert "blocked" in result.error.lower(), "Should mention blocked"
-    print("✅ Safety blocking works correctly")
+    print("Safety blocking works correctly")
 
 
 def test_react_agent_read_readme():
@@ -51,7 +51,7 @@ def test_react_agent_read_readme():
     agent = ReActAgent(model="llama3.2", max_steps=5)
     assert agent.max_steps == 5
     assert agent.ollama.model == "llama3.2"
-    print("✅ ReActAgent initializes correctly")
+    print("ReActAgent initializes correctly")
 
 
 if __name__ == "__main__":
@@ -62,4 +62,4 @@ if __name__ == "__main__":
     test_bash_execute_safety()
     test_react_agent_read_readme()
     
-    print("\n✅ All tests passed!")
+    print("\n All tests passed!")
