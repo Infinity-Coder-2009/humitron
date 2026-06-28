@@ -306,7 +306,7 @@ If you don't need to call a tool, just respond normally with your final answer."
         """Print agent's thinking with nice formatting."""
         console.print(Panel(
             Text(content, style="cyan"),
-            title="🤔 Thinking",
+            title="Thinking",
             border_style="cyan",
             padding=(0, 1)
         ))
@@ -316,7 +316,7 @@ If you don't need to call a tool, just respond normally with your final answer."
         args_json = json.dumps(tool_call.arguments, indent=2)
         console.print(Panel(
             Syntax(args_json, "json", theme="monokai"),
-            title=f"🔧 Tool Call: {tool_call.name}",
+            title=f"Tool Call: {tool_call.name}",
             border_style="yellow",
             padding=(0, 1)
         ))
@@ -325,10 +325,10 @@ If you don't need to call a tool, just respond normally with your final answer."
         """Print tool result with color coding."""
         if result.success:
             style = "green"
-            title = "✅ Tool Result"
+            title = "Tool Result"
         else:
             style = "red"
-            title = "❌ Tool Error"
+            title = "Tool Error"
         
         console.print(Panel(
             Text(result.output or result.error or "(no output)", style=style),
@@ -341,7 +341,7 @@ If you don't need to call a tool, just respond normally with your final answer."
         """Print final answer."""
         console.print(Panel(
             Text(answer, style="bold white"),
-            title="💡 Final Answer",
+            title="Final Answer",
             border_style="green",
             padding=(1, 2)
         ))
