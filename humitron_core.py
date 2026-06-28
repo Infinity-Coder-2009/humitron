@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import sys
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable, Tuple
@@ -562,9 +563,9 @@ If you don't need to call a tool, just respond normally with your final answer."
     def _print_thinking(self, content: str) -> None:
         """Print agent's thinking with nice formatting."""
         console.print(Panel(
-            Text(content, style="blue"),
+            Text(content, style="cyan"),
             title="🤔 Reasoning",
-            border_style="blue",
+            border_style="cyan",
             padding=(0, 1)
         ))
     
@@ -573,19 +574,20 @@ If you don't need to call a tool, just respond normally with your final answer."
         args_json = json.dumps(tool_call.arguments, indent=2)
         console.print(Panel(
             Syntax(args_json, "json", theme="monokai"),
-            title=f"🔧 Tool Call: {tool_call.name}",
+            title=f"Tool Call: {tool_call.name}",
             border_style="yellow",
             padding=(0, 1)
         ))
     
     def _print_tool_result(self, result: ToolResult) -> None:
         """Print tool result with color coding."""
+        if success else red."""
         if result.success:
             style = "green"
-            title = "✅ Tool Result"
+            title = "Tool Result"
         else:
             style = "red"
-            title = "❌ Tool Error"
+            title = "Tool Error"
         
         console.print(Panel(
             Text(result.output or result.error or "(no output)", style=style),
@@ -670,7 +672,8 @@ If you don't need to call a tool, just respond normally with your final answer."
         """
         Run the ReAct loop for a user prompt.
         
-        Args            user_prompt: The user's question or task.
+        Args:
+            user_prompt: The user's question or task.
             
         Returns:
             Final answer from the agent.
