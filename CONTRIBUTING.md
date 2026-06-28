@@ -1,4 +1,3 @@
-```markdown
 # Contributing to Humitron
 
 First off, thank you for considering contributing to Humitron! 
