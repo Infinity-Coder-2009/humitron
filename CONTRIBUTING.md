@@ -1,6 +1,3 @@
-
-
-
 ```markdown
 # Contributing to Humitron
 
@@ -246,7 +243,7 @@ We welcome contributions written with AI assistance! Here's how to do it well:
 
 Every contribution, no matter how small, makes Humitron better. You are part of this project's story.
 
-**Now go build something amazing!** 🚀
+**Now go build something amazing!** 
 
 ---
 
