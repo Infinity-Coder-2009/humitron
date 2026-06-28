@@ -31,3 +31,7 @@ ollama pull llama3.2
 
 # 4. Run it
 ./humitron
+
+# Click "Launch Cloud Agent" in the app
+# Top up $10, $25, or $50
+# Start using cloud GPUs instantly
