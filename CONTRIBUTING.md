@@ -1,6 +1,6 @@
 # Contributing to Humitron
 
-First off, thank you for considering contributing to Humitron! 
+First off, thank you for considering contributing to Humitron!
 
 We're building a local-first, hybrid AI agent that puts privacy and control back in users' hands. Whether you're fixing a bug, adding a feature, or improving documentation—every contribution matters.
 
@@ -59,7 +59,7 @@ We accept code contributions in these areas:
 |------|-------|------------|
 | **Core Agent Loop** | Python, ReAct pattern | 🟡 Medium |
 | **Tool Implementations** | Python (file I/O, bash, web) | 🟢 Easy |
-| **Desktop UI** | TypeScript, Electron/Tauri | 🔴 Hard |
+| **Desktop UI** | TypeScript, Tauri | 🔴 Hard |
 | **Cloud Backend** | Python, FastAPI, Docker | 🔴 Hard |
 | **Testing** | Python (pytest) | 🟢 Easy |
 | **Documentation** | Markdown | 🟢 Very Easy |
@@ -73,7 +73,8 @@ We accept code contributions in these areas:
 | Tool | Version | Why |
 |------|---------|-----|
 | [Python](https://www.python.org/) | 3.10+ | Core agent logic |
-| [Node.js](https://nodejs.org/) | 18+ | UI (if using Electron) |
+| [Node.js](https://nodejs.org/) | 18+ | UI (Tauri) |
+| [Rust](https://www.rust-lang.org/) | 1.75+ | Tauri backend |
 | [Ollama](https://ollama.ai/) | Latest | Local model runner |
 | [Git](https://git-scm.com/) | Any | Version control |
 | [Docker](https://www.docker.com/) (optional) | Latest | Sandboxing and cloud testing |
@@ -90,35 +91,37 @@ cd humitron
 2. **Set up the backend**
 
 ```bash
-cd backend
+cd src
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
-3. **Set up the frontend (if applicable)**
+3. **Set up the frontend**
 
 ```bash
-cd ../frontend
+cd ..
 npm install
 ```
 
 4. **Run the app locally**
 
 ```bash
-# Backend
-cd backend
-python main.py
+# Backend (Terminal 1)
+cd src
+python -m humitron.api.server
 
-# Frontend (in another terminal)
-cd frontend
+# Frontend (Terminal 2)
 npm run dev
+
+# Desktop app (Terminal 3)
+npm run tauri:dev
 ```
 
 5. **Run tests**
 
 ```bash
-cd backend
+cd src
 pytest tests/
 ```
 
@@ -168,14 +171,14 @@ We follow [PEP 8](https://peps.python.org/pep-0008/) with these additions:
 def execute_bash_command(command: str, timeout: int = 30) -> dict:
     """
     Execute a bash command and return the result.
-    
+
     Args:
         command: The bash command to execute.
         timeout: Maximum execution time in seconds.
-    
+
     Returns:
         A dict with 'output', 'error', and 'exit_code' keys.
-    
+
     Raises:
         TimeoutError: If the command exceeds timeout.
     """
@@ -206,6 +209,12 @@ const sendMessage = async (message: AgentMessage): Promise<AgentResponse> => {
 };
 ```
 
+### Rust (Tauri Backend)
+
+- Follow standard Rust conventions (`cargo fmt`)
+- Use `clippy` for linting
+- Document public APIs with `///` comments
+
 ---
 
 ##  Issue Labels
@@ -220,7 +229,6 @@ We use these labels to help contributors find the right tasks:
 | `enhancement` | New feature or improvement |
 | `documentation` | Docs need work |
 | `question` | We need more info |
-
 
 ---
 
@@ -241,9 +249,8 @@ We welcome contributions written with AI assistance! Here's how to do it well:
 
 Every contribution, no matter how small, makes Humitron better. You are part of this project's story.
 
-**Now go build something amazing!** 
+**Now go build something amazing!**
 
 ---
 
 *Humitron is built by a solo developer—and contributors like you are the reason it will succeed.*
-```

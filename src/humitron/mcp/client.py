@@ -60,11 +60,11 @@ class MCPServerConfig:
 class MCPClient:
     """
     Client for communicating with MCP servers.
-    
+
     Supports stdio, SSE, and WebSocket transports.
     Discovers tools, resources, and prompts from connected servers.
     """
-    
+
     def __init__(self):
         """Initialize MCP client."""
         self.servers: Dict[str, MCPServerConfig] = {}
@@ -73,22 +73,22 @@ class MCPClient:
         self.resources: Dict[str, MCPResource] = {}
         self.prompts: Dict[str, MCPPrompt] = {}
         self._processes: Dict[str, asyncio.subprocess.Process] = {}
-    
+
     def add_server(self, config: MCPServerConfig) -> None:
         """Add an MCP server configuration.
-        
+
         Args:
             config: Server configuration.
         """
         self.servers[config.name] = config
         logger.info(f"Added MCP server: {config.name} ({config.transport})")
-    
+
     async def connect_server(self, server_name: str) -> bool:
         """Connect to a specific MCP server.
-        
+
         Args:
             server_name: Name of server to connect to.
-            
+
         Returns:
             True if connection successful, False otherwise.
         """
@@ -96,7 +96,7 @@ class MCPClient:
         if not config:
             logger.error(f"Server not found: {server_name}")
             return False
-        
+
         try:
             if config.transport == "stdio":
                 await self._connect_stdio(config)
@@ -107,30 +107,30 @@ class MCPClient:
             else:
                 logger.error(f"Unknown transport: {config.transport}")
                 return False
-            
+
             # Initialize and discover capabilities
             await self._initialize_server(server_name)
             await self._discover_capabilities(server_name)
-            
+
             logger.info(f"Connected to MCP server: {server_name}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to connect to {server_name}: {e}")
             return False
-    
+
     async def _connect_stdio(self, config: MCPServerConfig) -> None:
         """Connect via stdio (subprocess).
-        
+
         Args:
             config: Server configuration.
-            
+
         Raises:
             ValueError: If command not specified for stdio transport.
         """
         if not config.command:
             raise ValueError("stdio transport requires command")
-        
+
         proc = await asyncio.create_subprocess_exec(
             config.command,
             *config.args,
@@ -139,66 +139,66 @@ class MCPClient:
             stderr=asyncio.subprocess.PIPE,
             env={**os.environ, **config.env}
         )
-        
+
         self._processes[config.name] = proc
         self.connections[config.name] = {
             "stdin": proc.stdin,
             "stdout": proc.stdout,
             "type": "stdio"
         }
-    
+
     async def _connect_sse(self, config: MCPServerConfig) -> None:
         """Connect via Server-Sent Events.
-        
+
         Args:
             config: Server configuration.
-            
+
         Raises:
             ValueError: If URL not specified for SSE transport.
         """
         if not config.url:
             raise ValueError("SSE transport requires URL")
-        
+
         client = httpx.AsyncClient(
             timeout=30.0,
             headers=config.headers
         )
-        
+
         self.connections[config.name] = {
             "client": client,
             "url": config.url,
             "type": "sse"
         }
-    
+
     async def _connect_websocket(self, config: MCPServerConfig) -> None:
         """Connect via WebSocket.
-        
+
         Args:
             config: Server configuration.
-            
+
         Raises:
             ValueError: If URL not specified for WebSocket transport.
         """
         if not config.url:
             raise ValueError("WebSocket transport requires URL")
-        
+
         ws = await websockets.connect(config.url, extra_headers=config.headers)
         self.connections[config.name] = {
             "websocket": ws,
             "type": "websocket"
         }
-    
+
     async def _send_request(self, server_name: str, method: str, params: Dict = None) -> Dict:
         """Send a JSON-RPC request to an MCP server.
-        
+
         Args:
             server_name: Name of server to send request to.
             method: JSON-RPC method name.
             params: Optional parameters.
-            
+
         Returns:
             Response dictionary.
-            
+
         Raises:
             ConnectionError: If not connected to server.
             ValueError: If unknown connection type.
@@ -206,7 +206,7 @@ class MCPClient:
         conn = self.connections.get(server_name)
         if not conn:
             raise ConnectionError(f"Not connected to server: {server_name}")
-        
+
         request_id = f"{server_name}-{int(time.time() * 1000)}"
         request = {
             "jsonrpc": "2.0",
@@ -214,44 +214,44 @@ class MCPClient:
             "method": method,
             "params": params or {}
         }
-        
+
         if conn["type"] == "stdio":
             return await self._send_stdio(conn, request)
         elif conn["type"] == "sse":
             return await self._send_sse(conn, request)
         elif conn["type"] == "websocket":
             return await self._send_websocket(conn, request)
-        
+
         raise ValueError(f"Unknown connection type: {conn['type']}")
-    
+
     async def _send_stdio(self, conn: Dict, request: Dict) -> Dict:
         """Send request via stdio.
-        
+
         Args:
             conn: Connection dictionary.
             request: JSON-RPC request.
-            
+
         Returns:
             Response dictionary.
         """
         stdin = conn["stdin"]
         stdout = conn["stdout"]
-        
+
         message = json.dumps(request) + "\n"
         stdin.write(message.encode())
         await stdin.drain()
-        
+
         # Read response
         line = await stdout.readline()
         return json.loads(line.decode())
-    
+
     async def _send_sse(self, conn: Dict, request: Dict) -> Dict:
         """Send request via SSE (HTTP POST).
-        
+
         Args:
             conn: Connection dictionary.
             request: JSON-RPC request.
-            
+
         Returns:
             Response dictionary.
         """
@@ -262,14 +262,14 @@ class MCPClient:
             headers={"Content-Type": "application/json"}
         )
         return response.json()
-    
+
     async def _send_websocket(self, conn: Dict, request: Dict) -> Dict:
         """Send request via WebSocket.
-        
+
         Args:
             conn: Connection dictionary.
             request: JSON-RPC request.
-            
+
         Returns:
             Response dictionary.
         """
@@ -277,10 +277,10 @@ class MCPClient:
         await ws.send(json.dumps(request))
         response = await ws.recv()
         return json.loads(response)
-    
+
     async def _initialize_server(self, server_name: str) -> None:
         """Initialize MCP server connection.
-        
+
         Args:
             server_name: Name of server to initialize.
         """
@@ -289,10 +289,10 @@ class MCPClient:
             "capabilities": {},
             "clientInfo": {"name": "humitron", "version": "0.2.0"}
         })
-    
+
     async def _discover_capabilities(self, server_name: str) -> None:
         """Discover tools, resources, and prompts from server.
-        
+
         Args:
             server_name: Name of server to discover capabilities from.
         """
@@ -302,92 +302,92 @@ class MCPClient:
             tool = MCPTool(**tool_data)
             namespaced_name = f"{server_name}.{tool.name}"
             self.tools[namespaced_name] = tool
-        
+
         # List resources
         resources_response = await self._send_request(server_name, "resources/list")
         for res_data in resources_response.get("result", {}).get("resources", []):
             resource = MCPResource(**res_data)
             namespaced_name = f"{server_name}.{resource.name}"
             self.resources[namespaced_name] = resource
-        
+
         # List prompts
         prompts_response = await self._send_request(server_name, "prompts/list")
         for prompt_data in prompts_response.get("result", {}).get("prompts", []):
             prompt = MCPPrompt(**prompt_data)
             namespaced_name = f"{server_name}.{prompt.name}"
             self.prompts[namespaced_name] = prompt
-        
+
         logger.info(f"Discovered {len(self.tools)} tools, "
                    f"{len(self.resources)} resources, "
                    f"{len(self.prompts)} prompts from {server_name}")
-    
+
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         Call a tool on an MCP server.
-        
+
         Args:
             tool_name: Namespaced tool name (e.g., "github.search_repos")
             arguments: Tool arguments
-            
+
         Returns:
             Tool result
-            
+
         Raises:
             ValueError: If tool name is not namespaced.
         """
         # Parse server and tool name
         if "." not in tool_name:
             raise ValueError(f"Tool name must be namespaced: {tool_name}")
-        
+
         server_name, actual_tool = tool_name.split(".", 1)
-        
+
         result = await self._send_request(server_name, "tools/call", {
             "name": actual_tool,
             "arguments": arguments
         })
-        
+
         return result.get("result", {})
-    
+
     async def read_resource(self, resource_uri: str) -> Dict[str, Any]:
         """Read a resource from an MCP server.
-        
+
         Args:
             resource_uri: Resource URI.
-            
+
         Returns:
             Resource content.
         """
         result = await self._send_request("", "resources/read", {"uri": resource_uri})
         return result.get("result", {})
-    
+
     async def get_prompt(self, prompt_name: str, arguments: Dict = None) -> Dict[str, Any]:
         """Get a prompt template from an MCP server.
-        
+
         Args:
             prompt_name: Namespaced prompt name.
             arguments: Optional prompt arguments.
-            
+
         Returns:
             Prompt template.
-            
+
         Raises:
             ValueError: If prompt name is not namespaced.
         """
         if "." not in prompt_name:
             raise ValueError(f"Prompt name must be namespaced: {prompt_name}")
-        
+
         server_name, actual_prompt = prompt_name.split(".", 1)
-        
+
         result = await self._send_request(server_name, "prompts/get", {
             "name": actual_prompt,
             "arguments": arguments or {}
         })
-        
+
         return result.get("result", {})
-    
+
     def get_tool_schemas(self) -> List[Dict]:
         """Get all discovered tools as OpenAI-compatible schemas.
-        
+
         Returns:
             List of tool schemas.
         """
@@ -400,10 +400,10 @@ class MCPClient:
                 "parameters": tool.input_schema
             })
         return schemas
-    
+
     async def disconnect_server(self, server_name: str) -> None:
         """Disconnect from an MCP server.
-        
+
         Args:
             server_name: Name of server to disconnect from.
         """
@@ -418,14 +418,14 @@ class MCPClient:
                 await conn["client"].aclose()
             elif conn["type"] == "websocket":
                 await conn["websocket"].close()
-        
+
         # Remove discovered capabilities
         self.tools = {k: v for k, v in self.tools.items() if not k.startswith(f"{server_name}.")}
         self.resources = {k: v for k, v in self.resources.items() if not k.startswith(f"{server_name}.")}
         self.prompts = {k: v for k, v in self.prompts.items() if not k.startswith(f"{server_name}.")}
-        
+
         logger.info(f"Disconnected from MCP server: {server_name}")
-    
+
     async def disconnect_all(self) -> None:
         """Disconnect from all servers."""
         for server_name in list(self.connections.keys()):
@@ -438,7 +438,7 @@ _mcp_client: Optional[MCPClient] = None
 
 def get_mcp_client() -> MCPClient:
     """Get or create the global MCP client.
-    
+
     Returns:
         Global MCPClient instance.
     """
@@ -453,7 +453,7 @@ def get_mcp_client() -> MCPClient:
 
 def get_builtin_servers() -> Dict[str, MCPServerConfig]:
     """Get configurations for common MCP servers.
-    
+
     Returns:
         Dictionary of server name to config.
     """

@@ -18,7 +18,7 @@ from threading import Lock
 @dataclass
 class TrajectoryStep:
     """A single step in the agent's trajectory.
-    
+
     Attributes:
         step_number: Sequential step number.
         timestamp: ISO format timestamp.
@@ -38,7 +38,7 @@ class TrajectoryStep:
 @dataclass
 class Trajectory:
     """Complete trajectory of an agent session.
-    
+
     Attributes:
         trajectory_id: Unique trajectory identifier.
         session_id: Session identifier.
@@ -63,22 +63,22 @@ class Trajectory:
     metadata: Dict[str, Any] = field(default_factory=dict)
     success: bool = True
     error: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization.
-        
+
         Returns:
             Dictionary representation.
         """
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Trajectory":
         """Create Trajectory from dictionary.
-        
+
         Args:
             data: Dictionary with trajectory data.
-            
+
         Returns:
             Trajectory instance.
         """
@@ -90,13 +90,13 @@ class Trajectory:
 class TrajectoryLogger:
     """
     Logs agent trajectories to JSON files.
-    
+
     Thread-safe, supports concurrent sessions.
     """
-    
+
     def __init__(self, log_dir: Path = Path("trajectories")):
         """Initialize trajectory logger.
-        
+
         Args:
             log_dir: Directory to store trajectory logs.
         """
@@ -105,7 +105,7 @@ class TrajectoryLogger:
         self.current_trajectory: Optional[Trajectory] = None
         self._lock = Lock()
         self._step_counter = 0
-    
+
     def start_trajectory(
         self,
         user_prompt: str,
@@ -114,13 +114,13 @@ class TrajectoryLogger:
         metadata: Optional[Dict[str, Any]] = None
     ) -> Trajectory:
         """Start a new trajectory.
-        
+
         Args:
             user_prompt: User's prompt.
             session_id: Session identifier.
             user_id: Optional user identifier.
             metadata: Optional metadata.
-            
+
         Returns:
             Started Trajectory instance.
         """
@@ -136,7 +136,7 @@ class TrajectoryLogger:
             )
             self.current_trajectory = trajectory
             return trajectory
-    
+
     def log_step(
         self,
         step_type: str,
@@ -145,23 +145,23 @@ class TrajectoryLogger:
         token_count: Optional[int] = None
     ) -> TrajectoryStep:
         """Log a step in the current trajectory.
-        
+
         Args:
             step_type: Type of step.
             content: Step content.
             duration_ms: Optional duration in milliseconds.
             token_count: Optional token count.
-            
+
         Returns:
             Logged TrajectoryStep.
-            
+
         Raises:
             RuntimeError: If no active trajectory.
         """
         with self._lock:
             if not self.current_trajectory:
                 raise RuntimeError("No active trajectory. Call start_trajectory first.")
-            
+
             self._step_counter += 1
             step = TrajectoryStep(
                 step_number=self._step_counter,
@@ -173,7 +173,7 @@ class TrajectoryLogger:
             )
             self.current_trajectory.steps.append(step)
             return step
-    
+
     def log_llm_call(
         self,
         messages: List[Dict[str, str]],
@@ -182,13 +182,13 @@ class TrajectoryLogger:
         token_count: Optional[int] = None
     ) -> TrajectoryStep:
         """Log an LLM call.
-        
+
         Args:
             messages: Messages sent to LLM.
             response: LLM response.
             duration_ms: Call duration in milliseconds.
             token_count: Optional token count.
-            
+
         Returns:
             Logged TrajectoryStep.
         """
@@ -201,18 +201,18 @@ class TrajectoryLogger:
             duration_ms=duration_ms,
             token_count=token_count
         )
-    
+
     def log_tool_call(
         self,
         tool_name: str,
         arguments: Dict[str, Any]
     ) -> TrajectoryStep:
         """Log a tool call.
-        
+
         Args:
             tool_name: Name of tool called.
             arguments: Tool arguments.
-            
+
         Returns:
             Logged TrajectoryStep.
         """
@@ -223,7 +223,7 @@ class TrajectoryLogger:
                 "arguments": arguments
             }
         )
-    
+
     def log_tool_result(
         self,
         tool_name: str,
@@ -231,12 +231,12 @@ class TrajectoryLogger:
         duration_ms: float
     ) -> TrajectoryStep:
         """Log a tool result.
-        
+
         Args:
             tool_name: Name of tool.
             result: Tool result.
             duration_ms: Execution duration in milliseconds.
-            
+
         Returns:
             Logged TrajectoryStep.
         """
@@ -248,13 +248,13 @@ class TrajectoryLogger:
             },
             duration_ms=duration_ms
         )
-    
+
     def log_reasoning(self, reasoning: str) -> TrajectoryStep:
         """Log agent reasoning.
-        
+
         Args:
             reasoning: Reasoning text.
-            
+
         Returns:
             Logged TrajectoryStep.
         """
@@ -262,13 +262,13 @@ class TrajectoryLogger:
             step_type="reasoning",
             content={"reasoning": reasoning}
         )
-    
+
     def log_final_answer(self, answer: str) -> TrajectoryStep:
         """Log the final answer.
-        
+
         Args:
             answer: Final answer text.
-            
+
         Returns:
             Logged TrajectoryStep.
         """
@@ -276,7 +276,7 @@ class TrajectoryLogger:
             step_type="final_answer",
             content={"answer": answer}
         )
-    
+
     def end_trajectory(
         self,
         final_answer: Optional[str] = None,
@@ -284,40 +284,40 @@ class TrajectoryLogger:
         error: Optional[str] = None
     ) -> Trajectory:
         """End the current trajectory and save to disk.
-        
+
         Args:
             final_answer: Optional final answer.
             success: Whether trajectory succeeded.
             error: Optional error message.
-            
+
         Returns:
             Completed Trajectory instance.
-            
+
         Raises:
             RuntimeError: If no active trajectory.
         """
         with self._lock:
             if not self.current_trajectory:
                 raise RuntimeError("No active trajectory.")
-            
+
             self.current_trajectory.end_time = datetime.now().isoformat()
             self.current_trajectory.final_answer = final_answer
             self.current_trajectory.success = success
             self.current_trajectory.error = error
-            
+
             # Save to file
             self._save_trajectory(self.current_trajectory)
-            
+
             trajectory = self.current_trajectory
             self.current_trajectory = None
             return trajectory
-    
+
     def _save_trajectory(self, trajectory: Trajectory) -> Path:
         """Save trajectory to JSON file.
-        
+
         Args:
             trajectory: Trajectory to save.
-            
+
         Returns:
             Path to saved file.
         """
@@ -325,23 +325,23 @@ class TrajectoryLogger:
         date_str = datetime.now().strftime("%Y-%m-%d")
         date_dir = self.log_dir / date_str
         date_dir.mkdir(exist_ok=True)
-        
+
         # Filename: session_id_trajectory_id.json
         filename = f"{trajectory.session_id}_{trajectory.trajectory_id}.json"
         filepath = date_dir / filename
-        
+
         with open(filepath, "w") as f:
             json.dump(trajectory.to_dict(), f, indent=2, default=str)
-        
+
         return filepath
-    
+
     def load_trajectory(self, trajectory_id: str, date: Optional[str] = None) -> Optional[Trajectory]:
         """Load a trajectory by ID.
-        
+
         Args:
             trajectory_id: Trajectory ID to load.
             date: Optional date string (YYYY-MM-DD).
-            
+
         Returns:
             Trajectory if found, None otherwise.
         """
@@ -355,13 +355,13 @@ class TrajectoryLogger:
                         with open(file) as f:
                             return Trajectory.from_dict(json.load(f))
             return None
-        
+
         for file in date_dir.glob(f"*_{trajectory_id}.json"):
             with open(file) as f:
                 return Trajectory.from_dict(json.load(f))
-        
+
         return None
-    
+
     def list_trajectories(
         self,
         date: Optional[str] = None,
@@ -370,41 +370,41 @@ class TrajectoryLogger:
         limit: int = 100
     ) -> List[Trajectory]:
         """List trajectories with optional filters.
-        
+
         Args:
             date: Optional date filter.
             session_id: Optional session filter.
             user_id: Optional user filter.
             limit: Maximum number of trajectories.
-            
+
         Returns:
             List of trajectories.
         """
         trajectories = []
-        
+
         date_dirs = [self.log_dir / date] if date else sorted(self.log_dir.iterdir())
-        
+
         for date_dir in date_dirs:
             if not date_dir.is_dir():
                 continue
-            
+
             for file in sorted(date_dir.glob("*.json"), reverse=True):
                 if len(trajectories) >= limit:
                     break
-                
+
                 try:
                     with open(file) as f:
                         traj = Trajectory.from_dict(json.load(f))
-                    
+
                     if session_id and traj.session_id != session_id:
                         continue
                     if user_id and traj.user_id != user_id:
                         continue
-                    
+
                     trajectories.append(traj)
                 except Exception as e:
                     print(f"Error loading {file}: {e}")
-        
+
         return trajectories
 
 
@@ -414,7 +414,7 @@ _trajectory_logger: Optional[TrajectoryLogger] = None
 
 def get_trajectory_logger() -> TrajectoryLogger:
     """Get or create the global trajectory logger.
-    
+
     Returns:
         Global TrajectoryLogger instance.
     """

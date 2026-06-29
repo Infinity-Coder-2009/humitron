@@ -13,10 +13,10 @@ def build_backend():
     project_root = Path(__file__).parent.parent
     src_dir = project_root / "src"
     dist_dir = project_root / "src-tauri" / "sidecars"
-    
+
     # Ensure sidecars directory exists
     dist_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Run PyInstaller
     cmd = [
         sys.executable, "-m", "PyInstaller",
@@ -27,21 +27,21 @@ def build_backend():
         f"--specpath={project_root}",
         "pyinstaller.spec",
     ]
-    
+
     print(f"Building backend...")
     print(f"Command: {' '.join(cmd)}")
-    
+
     result = subprocess.run(cmd, cwd=project_root)
-    
+
     if result.returncode == 0:
         print("Backend built successfully!")
-        
+
         # Copy to platform-specific name
         if sys.platform == "win32":
             exe_name = "humitron-backend.exe"
         else:
             exe_name = "humitron-backend"
-        
+
         src_exe = dist_dir / exe_name
         if src_exe.exists():
             # Also copy to root for Tauri bundling

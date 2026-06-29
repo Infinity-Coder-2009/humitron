@@ -1,12 +1,12 @@
-# Humitron: Open-source for everyone!
+# Humitron: Local-First AI Agent
 
 **Humitron is the AI agent that runs on your terms.**
 
-- **Runs 100% free on your own machine** - Uses Ollama for local inference
-- **Uses any model you want** - Ollama, OpenAI, Claude, Gemini, or OpenRouter
-- **Bursts into cloud when you need extra power** - Pay only for what you use, at 150% of cost
-- **No subscriptions. No lock-in.** - Just an AI that works for you, not a corporation
-- **Desktop native** - Built for macOS, Windows, and Linux**
+- **Runs 100% free on your own machine** — Uses Ollama for local inference
+- **Uses any model you want** — Ollama, OpenAI, Claude, Gemini, or OpenRouter
+- **Bursts into cloud when you need extra power** — Pay only for what you use
+- **No subscriptions. No lock-in.** — Just an AI that works for you
+- **Desktop native** — Built for macOS, Windows, and Linux
 
 ## Quick Start
 
@@ -15,6 +15,8 @@
 - Python 3.10+
 - [Ollama](https://ollama.ai/) installed and running
 - At least one model pulled (e.g., `ollama pull llama3.2`)
+- Node.js 20+ (for frontend development)
+- Rust 1.75+ (for Tauri desktop app)
 
 ### Installation
 
@@ -48,6 +50,8 @@ max_steps: 20
 temperature: 0.7
 ollama_base_url: "http://localhost:11434"
 log_level: "INFO"
+provider: "ollama"
+cloud_api_key: ""
 ```
 
 Environment variables (prefixed with `HUMITRON_`) override config.yaml.
@@ -71,6 +75,11 @@ python -m humitron.ui.cli "Read the README.md file and summarize it"
 **With custom options:**
 ```bash
 python -m humitron.ui.cli --model mistral --max-steps 10 "Your prompt"
+```
+
+**Desktop app (Tauri):**
+```bash
+npm run tauri:dev
 ```
 
 ### Development
@@ -129,23 +138,21 @@ humitron/
 │   │       ├── __init__.py
 │   │       ├── logging.py       # Logging setup
 │   │       └── safety.py        # Path/command safety
-├── tests/
-│   ├── __init__.py
-│   ├── test_tools.py           # Tool unit tests
-│   ├── test_memory.py          # Memory unit tests
-│   ├── test_agent.py           # Agent unit tests
-│   ├── test_config.py          # Config unit tests
-│   └── test_json_parsing.py    # JSON parsing tests
-├── scripts/
-│   ├── __init__.py
-│   ├── benchmark.py            # Performance benchmarking
-│   └── deploy.py               # Deployment automation
-├── config.yaml                 # Default configuration
-├── .env.example                # Environment variable template
-├── requirements.txt            # Python dependencies
-├── pyproject.toml             # Project metadata & tool config
-├── Makefile                    # Build automation
-└── README.md                   # This file
+├── src-tauri/                   # Tauri desktop app
+│   ├── src/
+│   │   └── main.rs              # Sidecar management
+│   ├── Cargo.toml
+│   └── tauri.conf.json
+├── src/api/                     # FastAPI backend
+│   └── server.py
+├── tests/                       # Unit tests
+├── scripts/                     # Build/deploy scripts
+├── config.yaml                  # Default configuration
+├── .env.example                 # Environment variable template
+├── requirements.txt             # Python dependencies
+├── pyproject.toml              # Project metadata & tool config
+├── Makefile                     # Build automation
+└── README.md                    # This file
 ```
 
 ### Available Tools
@@ -156,6 +163,15 @@ humitron/
 | `write_file` | Write content to a file |
 | `bash_execute` | Execute bash commands (sandboxed) |
 | `web_search` | Search the web via DuckDuckGo |
+
+### Cloud Providers
+
+| Provider | Models | Setup |
+|----------|--------|-------|
+| **Ollama** (local) | llama3.2, mistral, phi4, codellama, etc. | `ollama pull <model>` |
+| **OpenAI** | gpt-4o, gpt-4-turbo, gpt-3.5-turbo | `OPENAI_API_KEY` |
+| **Anthropic** | claude-3-5-sonnet, claude-3-opus, claude-3-haiku | `ANTHROPIC_API_KEY` |
+| **OpenRouter** | 100+ models via single API | `OPENROUTER_API_KEY` |
 
 ### Safety Features
 
@@ -194,6 +210,20 @@ make docker-build
 # Run container
 make docker-run
 ```
+
+### Building Installers
+
+The GitHub Actions workflow builds native installers on tag push:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Produces:
+- Windows: `humitron-setup.exe` (NSIS)
+- macOS: `humitron.dmg` (Intel + Apple Silicon)
+- Linux: `humitron.AppImage`
 
 ### License
 

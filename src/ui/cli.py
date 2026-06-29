@@ -23,7 +23,7 @@ console = Console()
 
 def run_chat_loop(agent: ReActAgent) -> None:
     """Run continuous chat loop until user types 'exit'.
-    
+
     Args:
         agent: ReActAgent instance to use for chat.
     """
@@ -41,22 +41,22 @@ def run_chat_loop(agent: ReActAgent) -> None:
         border_style="cyan",
         padding=(1, 2)
     ))
-    
+
     while True:
         try:
             user_input = Prompt.ask("\n[bold cyan]You[/bold cyan]")
-            
+
             if user_input.lower().strip() in ("exit", "quit"):
                 console.print("[yellow]👋 Goodbye![/yellow]")
                 break
-            
+
             if user_input.lower().strip() == "clear":
                 agent.memory = agent.__class__.__new__(agent.__class__)
                 agent.memory.__init__(max_tokens=get_config().max_tokens_per_call)
                 agent.memory.add_message("system", agent.system_prompt)
                 console.print("[green]✨ Conversation history cleared.[/green]")
                 continue
-            
+
             if user_input.lower().strip() == "config":
                 config = get_config()
                 console.print(Panel(
@@ -65,10 +65,10 @@ def run_chat_loop(agent: ReActAgent) -> None:
                     border_style="cyan"
                 ))
                 continue
-            
+
             if not user_input.strip():
                 continue
-            
+
             # Run agent and display result
             try:
                 result = agent.run(user_input)
@@ -85,7 +85,7 @@ def run_chat_loop(agent: ReActAgent) -> None:
             except Exception as e:
                 console.print(f"[bold red]Error:[/bold red] {e}")
                 logger.exception("Agent error")
-            
+
         except KeyboardInterrupt:
             console.print("\n[yellow]Interrupted. Type 'exit' to quit.[/yellow]")
         except EOFError:
@@ -102,12 +102,12 @@ def main() -> None:
     parser.add_argument("--temperature", type=float, default=None, help="LLM temperature")
     parser.add_argument("--log-level", default=None, help="Log level (DEBUG, INFO, WARNING, ERROR)")
     parser.add_argument("--no-chat", action="store_true", help="Run single prompt and exit (no chat loop)")
-    
+
     args = parser.parse_args()
-    
+
     # Setup logging
     setup_logging(log_level=args.log_level)
-    
+
     # Create agent
     agent = ReActAgent(
         model=args.model,
@@ -115,7 +115,7 @@ def main() -> None:
         workspace=args.workspace,
         temperature=args.temperature
     )
-    
+
     # If prompt provided, run single query
     if args.prompt:
         prompt = " ".join(args.prompt)

@@ -1,18 +1,7 @@
-.PHONY: install test run clean lint format typecheck help
+.PHONY: install test lint format typecheck run run-prompt benchmark docker-build docker-run clean all
 
 # Default target
-help:
-	@echo "Humitron - Local-first AI Agent"
-	@echo ""
-	@echo "Available commands:"
-	@echo "  make install     - Install dependencies"
-	@echo "  make test        - Run test suite"
-	@echo "  make run         - Run the CLI agent"
-	@echo "  make clean       - Remove cache files"
-	@echo "  make lint        - Run ruff linter"
-	@echo "  make format      - Format code with black"
-	@echo "  make typecheck   - Run mypy type checker"
-	@echo "  make all         - Run format, lint, typecheck, test"
+all: install test lint format typecheck
 
 # Install dependencies
 install:
@@ -20,52 +9,64 @@ install:
 
 # Run tests
 test:
-	python -m pytest tests/ -v
+	pytest tests/ -v
 
-# Run the CLI agent
-run:
-	python -m humitron.ui.cli
-
-# Run with a prompt
-run-prompt:
-	python -m humitron.ui.cli "$(PROMPT)"
-
-# Clean cache files
-clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -type f -name "*.pyo" -delete 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
-	rm -rf build/ dist/ *.egg-info/ 2>/dev/null || true
-
-# Run linter
+# Lint with ruff
 lint:
 	ruff check src/ tests/
 
-# Format code
+# Format with black
 format:
 	black src/ tests/
 
-# Type check
+# Type check with mypy
 typecheck:
 	mypy src/
 
-# Run all checks
-all: format lint typecheck test
+# Run interactive chat
+run:
+	python -m humitron.ui.cli
 
-# Docker commands
-docker-build:
-	docker build -t humitron:latest .
+# Run single prompt
+run-prompt:
+	python -m humitron.ui.cli $(PROMPT)
 
-docker-run:
-	docker run -it --rm -v $(PWD):/workspace humitron:latest
-
-# Development setup
-dev-setup: install
-	pre-commit install
+# Run with custom options
+run-custom:
+	python -m humitron.ui.cli --model $(MODEL) --max-steps $(STEPS) "$(PROMPT)"
 
 # Benchmark
 benchmark:
-	python scripts/benchmark.py --queries 10 --steps 5
+	python scripts/benchmark.py --model $(MODEL) --queries $(QUERIES)
+
+# Build Docker image
+docker-build:
+	docker build -t humitron:latest .
+
+# Run Docker container
+docker-run:
+	docker run -it --rm \
+		-v $(PWD):/workspace \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		humitron:latest
+
+# Clean build artifacts
+clean:
+	rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .mypy_cache/ __pycache__/
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# Run all checks
+ci: test lint format typecheck
+	@echo "All checks passed!"
+
+# Development: run with auto-reload
+dev:
+	python -m humitron.ui.cli --log-level DEBUG
+
+# Build Python backend executable
+build-backend:
+	python scripts/build_backend.py
+
+# Package for distribution
+package: clean install build-backend
+	@echo "Package ready in dist/"

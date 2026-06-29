@@ -1,161 +1,106 @@
+// Prevent console window on Windows
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::process::Command;
-use tauri::{Manager, State, AppHandle};
-use tauri_plugin_shell::ShellExt;
-use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
-
-#[derive(Serialize, Deserialize)]
-struct SidecarConfig {
-    port: u16,
-    workspace: String,
-}
-
-struct SidecarState {
-    process: Mutex<Option<std::process::Child>>,
-    config: Mutex<SidecarConfig>,
-}
-
-#[tauri::command]
-async fn start_sidecar(app: AppHandle, state: State<'_, SidecarState>, workspace: String) -> Result<String, String> {
-    let config = SidecarConfig {
-        port: 8000,
-        workspace: workspace.clone(),
-    };
-    
-    *state.config.lock().unwrap() = config.clone();
-    
-    let sidecar_command = app.shell().sidecar("humitron-backend")
-        .map_err(|e| format!("Failed to create sidecar command: {}", e))?;
-    
-    let mut child = sidecar_command
-        .args(["--workspace", &workspace, "--port", &config.port.to_string()])
-        .spawn()
-        .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
-    
-    *state.process.lock().unwrap() = Some(child);
-    
-    // Wait a bit for server to start
-    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
-    
-    // Verify server is running
-    let client = reqwest::Client::new();
-    match client.get(format!("http://localhost:{}/health", config.port)).send().await {
-        Ok(resp) if resp.status().is_success() => Ok("Backend started successfully".to_string()),
-        Ok(_) => Err("Backend health check failed".to_string()),
-        Err(e) => Err(format!("Failed to connect to backend: {}", e)),
-    }
-}
-
-#[tauri::command]
-async fn stop_sidecar(state: State<'_, SidecarState>) -> Result<String, String> {
-    if let Some(mut child) = state.process.lock().unwrap().take() {
-        child.kill().map_err(|e| format!("Failed to kill sidecar: {}", e))?;
-        Ok("Backend stopped".to_string())
-    } else {
-        Ok("No backend running".to_string())
-    }
-}
-
-#[tauri::command]
-async fn check_ollama() -> Result<OllamaStatus, String> {
-    let client = reqwest::Client::new();
-    match client.get("http://localhost:11434/api/tags").send().await {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                let data: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-                let models: Vec<String> = data["models"].as_array()
-                    .unwrap_or(&vec![])
-                    .iter()
-                    .map(|m| m["name"].as_str().unwrap_or("").to_string())
-                    .collect();
-                Ok(OllamaStatus {
-                    running: true,
-                    models,
-                    error: None,
-                })
-            } else {
-                Ok(OllamaStatus {
-                    running: false,
-                    models: vec![],
-                    error: Some("Ollama not responding".to_string()),
-                })
-            }
-        }
-        Err(e) => Ok(OllamaStatus {
-            running: false,
-            models: vec![],
-            error: Some(e.to_string()),
-        }),
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct OllamaStatus {
-    running: bool,
-    models: Vec<String>,
-    error: Option<String>,
-}
-
-#[tauri::command]
-async fn pull_model(model: String) -> Result<String, String {
-    let client = reqwest::Client::new();
-    let payload = serde_json::json!({"name": model, "stream": false});
-    match client.post("http://localhost:11434/api/pull").json(&payload).send().await {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                format!("Model {} pulled successfully", model)
-            } else {
-                format!("Failed to pull model: {}", resp.status())
-            }
-        }
-        Err(e) => format!("Error pulling model: {}", e),
-    }
-}
+use std::path::PathBuf;
+use tauri::Manager;
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
-        .manage(SidecarState {
-            process: Mutex::new(None),
-            config: Mutex::new(SidecarConfig { port: 8000, workspace: ".".to_string() }),
-        })
-        .invoke_handler(tauri::generate_handler![
-            start_sidecar,
-            stop_sidecar,
-            check_ollama,
-            pull_model,
-        ])
         .setup(|app| {
-            // Auto-start backend on launch
-            let handle = app.handle().clone();
+            let handle = app.handle();
+
+            // Start Python backend sidecar
+            let sidecar_command = handle
+                .shell()
+                .sidecar("humitron-backend")
+                .expect("Failed to create sidecar command");
+
+            let (mut rx, _child) = sidecar_command
+                .spawn()
+                .expect("Failed to spawn sidecar");
+
             tauri::async_runtime::spawn(async move {
-                let workspace = dirs::home_dir()
-                    .unwrap_or_else(|| std::path::PathBuf::from("."))
-                    .join("humitron-workspace")
-                    .to_string_lossy()
-                    .to_string();
-                
-                let _ = start_sidecar(handle, State::new(SidecarState {
-                    process: Mutex::new(None),
-                    config: Mutex::new(SidecarConfig { port: 8000, workspace: workspace.clone() }),
-                }), workspace).await;
+                while let Some(event) = rx.recv().await {
+                    if let tauri::shell::SidecarEvent::Stdout(line) = event {
+                        println!("[backend] {}", String::from_utf8_lossy(&line));
+                    } else if let tauri::shell::SidecarEvent::Stderr(line) = event {
+                        eprintln!("[backend] {}", String::from_utf8_lossy(&line));
+                    }
+                }
             });
+
+            // Ensure backend is killed on app exit
+            let handle_clone = handle.clone();
+            app.on_window_event(move |_window, event| {
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
+                    // Sidecar will be killed automatically when app exits
+                }
+            });
+
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // Stop sidecar on close
-                let state: State<SidecarState> = window.state();
-                let _ = tauri::async_runtime::block_on(stop_sidecar(state));
-            }
-        })
+        .invoke_handler(tauri::generate_handler![
+            commands::pick_folder,
+            commands::start_sidecar,
+            commands::update_config,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+mod commands {
+    use tauri::{command, State, AppHandle, Manager};
+    use std::sync::Mutex;
+    use std::path::PathBuf;
+
+    #[command]
+    async fn pick_folder(app: AppHandle) -> Result<Option<String>, String> {
+        use tauri_plugin_dialog::DialogExt;
+
+        let folder = app.dialog()
+            .file()
+            .pick_folder(None)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        Ok(folder.map(|p| p.to_string()))
+    }
+
+    #[command]
+    async fn start_sidecar(app: AppHandle, workspace: String) -> Result<(), String> {
+        // Set workspace env var for sidecar
+        std::env::set_var("HUMITRON_WORKSPACE", workspace);
+
+        let sidecar_command = app
+            .shell()
+            .sidecar("humitron-backend")
+            .map_err(|e| e.to_string())?;
+
+        let (mut _rx, _child) = sidecar_command
+            .spawn()
+            .map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+
+    #[command]
+    async fn update_config(config: serde_json::Value) -> Result<(), String> {
+        // Write config to file
+        let config_path = std::env::current_dir()
+            .map_err(|e| e.to_string())?
+            .join("config.yaml");
+
+        let yaml = serde_yaml::to_string(&config)
+            .map_err(|e| e.to_string())?;
+
+        std::fs::write(config_path, yaml)
+            .map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
 }

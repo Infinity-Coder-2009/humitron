@@ -19,17 +19,17 @@ def run_benchmark(
     max_steps: int = 5
 ) -> dict:
     """Run benchmark on agent.
-    
+
     Args:
         model: Model to benchmark.
         num_queries: Number of test queries.
         max_steps: Max steps per query.
-        
+
     Returns:
         Dictionary with benchmark results.
     """
     agent = ReActAgent(model=model, max_steps=max_steps)
-    
+
     test_queries = [
         "What is 2+2?",
         "Read the README.md file",
@@ -42,14 +42,14 @@ def run_benchmark(
         "Check if Ollama is running",
         "Show current configuration",
     ]
-    
+
     latencies = []
     successes = 0
     errors = 0
-    
+
     for i, query in enumerate(test_queries[:num_queries]):
         print(f"Query {i+1}/{num_queries}: {query[:50]}...")
-        
+
         start = time.time()
         try:
             result = agent.run(query)
@@ -61,7 +61,7 @@ def run_benchmark(
             elapsed = time.time() - start
             errors += 1
             print(f"  ✗ Failed after {elapsed:.2f}s: {e}")
-    
+
     if latencies:
         return {
             "model": model,
@@ -90,14 +90,14 @@ def main():
     parser.add_argument("--queries", type=int, default=10, help="Number of queries")
     parser.add_argument("--steps", type=int, default=5, help="Max steps per query")
     parser.add_argument("--output", help="Output JSON file")
-    
+
     args = parser.parse_args()
-    
+
     print(f"Starting benchmark: model={args.model}, queries={args.queries}")
     print("-" * 50)
-    
+
     results = run_benchmark(args.model, args.queries, args.steps)
-    
+
     print("-" * 50)
     print("BENCHMARK RESULTS")
     print("-" * 50)
@@ -110,7 +110,7 @@ def main():
     print(f"Min Latency: {results['min_latency']:.2f}s")
     print(f"Max Latency: {results['max_latency']:.2f}s")
     print(f"Std Dev: {results['stdev_latency']:.2f}s")
-    
+
     if args.output:
         import json
         with open(args.output, "w") as f:

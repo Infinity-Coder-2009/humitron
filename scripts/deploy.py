@@ -71,29 +71,29 @@ def main():
     parser.add_argument("--all", action="store_true", help="Run all checks")
     parser.add_argument("--image", default="humitron", help="Docker image name")
     parser.add_argument("--tag", default="latest", help="Docker image tag")
-    
+
     args = parser.parse_args()
-    
+
     if args.all:
         args.test = True
         args.lint = True
         args.format = True
         args.build = True
-    
+
     all_passed = True
-    
+
     if args.format:
         all_passed &= format_code()
-    
+
     if args.lint:
         all_passed &= lint_code()
-    
+
     if args.test:
         all_passed &= run_tests()
-    
+
     if args.build:
         all_passed &= build_docker(args.image, args.tag)
-    
+
     if all_passed:
         print("\n✅ All deployment steps passed!")
         sys.exit(0)
