@@ -1,11 +1,15 @@
-.PHONY: install test lint format typecheck run run-prompt benchmark docker-build docker-run clean all
+.PHONY: install test lint format typecheck audit run run-prompt benchmark docker-build docker-run clean all
 
 # Default target
-all: install test lint format typecheck
+all: install test lint format typecheck audit
 
-# Install dependencies
+# Install from lock file (always!)
 install:
-	pip install -e ".[dev]"
+	pip install -r requirements-lock.txt
+
+# Install for development
+install-dev:
+	pip install -e ".[dev]" -r requirements-lock.txt
 
 # Run tests
 test:
@@ -22,6 +26,12 @@ format:
 # Type check with mypy
 typecheck:
 	mypy src/
+
+# Security audit with bandit
+audit:
+	bandit -r src/ -f txt -o bandit-report.txt
+	bandit -r src/ -f html -o bandit-report.html
+	@echo "Security audit complete. Review bandit-report.html"
 
 # Run interactive chat
 run:
@@ -43,11 +53,10 @@ benchmark:
 docker-build:
 	docker build -t humitron:latest .
 
-# Run Docker container
+# Run Docker container (isolated!)
 docker-run:
 	docker run -it --rm \
 		-v $(PWD):/workspace \
-		-v /var/run/docker.sock:/var/run/docker.sock \
 		humitron:latest
 
 # Clean build artifacts
@@ -55,8 +64,8 @@ clean:
 	rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .mypy_cache/ __pycache__/
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
-# Run all checks
-ci: test lint format typecheck
+# Run all checks (tests + lint + format + typecheck + audit)
+ci: test lint format typecheck audit
 	@echo "All checks passed!"
 
 # Development: run with auto-reload
@@ -70,3 +79,9 @@ build-backend:
 # Package for distribution
 package: clean install build-backend
 	@echo "Package ready in dist/"
+
+# Verify dependencies (audit them!)
+verify-deps:
+	pip install pip-audit
+	pip-audit
+	@echo "Dependencies verified. No known vulnerabilities."

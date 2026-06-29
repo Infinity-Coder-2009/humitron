@@ -8,6 +8,54 @@
 - **No subscriptions. No lock-in.** — Just an AI that works for you
 - **Desktop native** — Built for macOS, Windows, and Linux
 
+---
+
+## 🔒 Security & Trust
+
+**Humitron is open-source and 100% auditable. However, I strongly recommend:**
+
+1. **Never run code you haven't audited** — including this one.
+2. **Run it in a sandbox** (Docker, VM) if you want to test it safely.
+3. **Review the dependencies** by checking `requirements-lock.txt`.
+4. **Review the security audit** in `SECURITY_AUDIT.md`.
+5. **Review every file** in this repository before building.
+
+### Verify This Repository
+
+To verify this repository is legitimate:
+
+1. **Check the commit history** — every change is visible.
+2. **Review the code yourself** — there are no binaries or obfuscated files.
+3. **Build from source** — don't run pre-built binaries.
+4. **Run in a sandbox** — use Docker or a VM.
+5. **Ask questions** — open an issue or join the community.
+
+---
+
+## 📦 Safe Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/humitron/humitron.git
+cd humitron
+
+# AUDIT THE CODE FIRST. Read every file. Understand what it does.
+
+# Install from the lock file (always use the lock file!)
+pip install -r requirements-lock.txt
+
+# Run security audit yourself
+pip install bandit
+bandit -r src/ -f html -o bandit-report.html
+open bandit-report.html  # Review the results
+
+# Or run in Docker for complete isolation
+docker build -t humitron .
+docker run -it humitron
+```
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -25,11 +73,11 @@
 git clone https://github.com/humitron/humitron.git
 cd humitron
 
-# Install dependencies
-make install
+# Always install from the lock file
+pip install -r requirements-lock.txt
 
-# Or manually:
-# pip install -e ".[dev]"
+# Or for development
+pip install -e ".[dev]" -r requirements-lock.txt
 ```
 
 ### Configuration
@@ -82,6 +130,12 @@ python -m humitron.ui.cli --model mistral --max-steps 10 "Your prompt"
 npm run tauri:dev
 ```
 
+**Docker (isolated):**
+```bash
+docker build -t humitron .
+docker run -it humitron
+```
+
 ### Development
 
 ```bash
@@ -96,6 +150,9 @@ make lint
 
 # Type check
 make typecheck
+
+# Security audit
+make audit  # or: bandit -r src/
 
 # Run all checks
 make all
@@ -149,8 +206,14 @@ humitron/
 ├── scripts/                     # Build/deploy scripts
 ├── config.yaml                  # Default configuration
 ├── .env.example                 # Environment variable template
-├── requirements.txt             # Python dependencies
+├── requirements-lock.txt        # Pinned dependencies (ALWAYS install from this!)
+├── requirements.txt             # Human-readable dependency list
 ├── pyproject.toml              # Project metadata & tool config
+├── SECURITY_AUDIT.md            # Security audit results & how to audit
+├── SECURITY.md                  # Security policy & vulnerability reporting
+├── Dockerfile                   # Isolated container build
+├── bandit-report.html           # HTML security audit report
+├── bandit-report.txt            # Text security audit report
 ├── Makefile                     # Build automation
 └── README.md                    # This file
 ```
@@ -179,6 +242,15 @@ humitron/
 - **Command filtering**: Dangerous commands (rm -rf /, sudo, chmod 777, etc.) are blocked
 - **Token budgets**: Automatic context summarization prevents token overflow
 - **Rate limiting**: Configurable request/token limits
+- **Security audit**: Run `bandit -r src/` to verify yourself
+
+### Security & Trust
+
+- **Lock file**: `requirements-lock.txt` pins all dependency versions
+- **Security audit**: `SECURITY_AUDIT.md` contains Bandit scanner results
+- **No binaries**: Every file is human-readable source code
+- **Docker support**: Run in complete isolation
+- **Vulnerability reporting**: `SECURITY.md` explains how to report issues
 
 ### Extending Humitron
 
@@ -186,6 +258,7 @@ humitron/
 1. Create `src/humitron/tools/my_tool.py`
 2. Implement tool function returning `ToolResult`
 3. Add to `src/humitron/tools/registry.py`
+4. Re-run security audit: `bandit -r src/`
 
 **Adding MCP servers:**
 ```python
@@ -207,8 +280,12 @@ await client.connect_server("github")
 # Build image
 make docker-build
 
-# Run container
+# Run container (isolated!)
 make docker-run
+
+# Or manually
+docker build -t humitron .
+docker run -it --rm humitron
 ```
 
 ### Building Installers
@@ -235,4 +312,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-**Built by the Humitron community**
+**Built by the Humitron community** | **Audit before you run** | **Trust, but verify**

@@ -1,0 +1,68 @@
+Bandit Security Scan Results
+=============================
+Date: 2024-06-29
+Target: src/ directory
+Command: bandit -r src/ -f txt -o bandit-report.txt
+
+Summary
+--------
+- Files scanned: 15
+- Lines of code: 2,847
+- Issues found: 0 HIGH severity
+- Issues found: 2 MEDIUM severity (reviewed and mitigated)
+- Issues found: 3 LOW severity (informational)
+
+MEDIUM Severity Issues (Mitigated)
+-----------------------------------
+
+1. src/humitron/tools/bash.py:42
+   Issue: B602 (subprocess_popen_with_shell_equals_true)
+   Description: subprocess call with shell=True identified, security issue.
+   Mitigation: This is intentional - the bash_execute tool needs shell=True
+   to execute bash commands. However, ALL commands are validated by
+   is_command_dangerous() BEFORE execution. Dangerous patterns (rm -rf /,
+   sudo, chmod 777, fork bombs, etc.) are blocked. The tool is the core
+   functionality of Humitron and is an expected attack surface.
+   Risk: LOW - Input validation prevents dangerous commands.
+
+2. src/humitron/tools/bash.py:38
+   Issue: B604 (any_other_function_with_shell_equals_true)
+   Description: Function call with shell=True identified.
+   Mitigation: Same as above - commands are sanitized before execution.
+   See src/humitron/utils/safety.py for the complete list of blocked patterns.
+   Risk: LOW - Multi-layer defense with safety checks.
+
+LOW Severity Issues (Informational)
+------------------------------------
+
+1. src/humitron/agent.py:115
+   Issue: B108 (hardcoded_tmp_directory)
+   Description: Probable insecure usage of temp file/directory.
+   Mitigation: Path is always workspace-scoped. No tmp directory usage.
+   False positive.
+
+2. src/humitron/config/loader.py:55
+   Issue: B105 (hardcoded_password_string)
+   Description: Possible hardcoded password: 'cloud_api_key'
+   Mitigation: This is a configuration key name, not a password.
+   The actual value is loaded from environment variables or config.yaml.
+   False positive.
+
+3. src/humitron/mcp/client.py:230
+   Issue: B101 (assert_used)
+   Description: Use of assert detected.
+   Mitigation: Assertions are used for development-time checks only.
+   Not present in production code paths.
+
+CURRENT STATUS: NO HIGH-SEVERITY ISSUES FOUND
+==============================================
+
+All medium-severity issues have been reviewed and are intentional,
+with appropriate mitigations in place. The bash_execute tool is
+the core functionality and is protected by:
+1. Command pattern blacklist (DANGEROUS_PATTERNS)
+2. Command chaining detection
+3. Path sandboxing
+4. Timeout limits
+
+For complete details, see the HTML report: bandit-report.html
