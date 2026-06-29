@@ -1,0 +1,21 @@
+# Humitron Configuration
+# All values can be overridden with environment variables (HUMITRON_*)
+
+model: "llama3.2"
+workspace_path: "."
+max_steps: 20
+temperature: 0.7
+ollama_base_url: "http://localhost:11434"
+max_tokens_per_session: 100000
+max_tokens_per_call: 8000
+reserve_tokens: 1000
+log_level: "INFO"
+enable_mcp: false
+enable_trajectory_logging: true
+trajectory_log_dir: "trajectories"
+health_check_port: 8080
+enable_prometheus: false
+prometheus_port: 9090
+rate_limit_requests_per_minute: 60
+rate_limit_tokens_per_day: 1000000
+sandbox_mode: false
