@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Humitron Core - ReAct Loop Implementation
+Humitron Core - ReAct Loop Implementation with Safety & Memory
 
 A local-first AI agent that uses Ollama for LLM inference and executes tools
-in a ReAct (Reasoning + Acting) loop pattern with full safety sandboxing.
+in a ReAct (Reasoning + Acting) loop pattern with strict sandboxing.
 """
 
 import json
@@ -11,15 +11,13 @@ import os
 import re
 import subprocess
 import sys
-import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable, Tuple
 
 import httpx
 import yaml
-from duckduckgo_search import DDGS
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -30,47 +28,46 @@ from loguru import logger
 
 # ─── Configuration Loading ─────────────────────────────────────────────────
 
+DEFAULT_CONFIG = {
+    "model": "llama3.2",
+    "workspace_path": str(Path.cwd()),
+    "max_steps": 20,
+    "temperature": 0.7,
+    "ollama_base_url": "http://localhost:11434",
+}
 
-def load_config(config_path: Path = Path("config.yaml")) -> Dict[str, Any]:
-    """Load configuration from YAML file."""
-    default_config = {
-        "model": "llama3.2",
-        "workspace_path": ".",
-        "max_steps": 20,
-        "temperature": 0.7,
-        "ollama_base_url": "http://localhost:11434",
-        "web_search_max_results": 5,
-        "web_search_region": "wt-wt",
-        "enable_safety_checks": True,
-        "allowed_directories": [],
-        "max_context_tokens": 8000,
-        "summarize_threshold": 6000,
-    }
-    
-    if config_path.exists():
-        try:
-            with open(config_path, "r") as f:
-                user_config = yaml.safe_load(f) or {}
-                default_config.update(user_config)
-        except Exception as e:
-            logger.warning(f"Failed to load config: {e}")
-    
-    return default_config
-
-
-CONFIG = load_config()
-DEFAULT_MODEL = CONFIG["model"]
-OLLAMA_BASE_URL = CONFIG["ollama_base_url"]
-MAX_STEPS = CONFIG["max_steps"]
-WORKSPACE_DIR = Path(CONFIG["workspace_path"]).resolve()
-TEMPERATURE = CONFIG["temperature"]
-ENABLE_SAFETY_CHECKS = CONFIG["enable_safety_checks"]
-WEB_SEARCH_MAX_RESULTS = CONFIG["web_search_max_results"]
-WEB_SEARCH_REGION = CONFIG["web_search_region"]
-MAX_CONTEXT_TOKENS = CONFIG["max_context_tokens"]
-SUMMARIZE_THRESHOLD = CONFIG["summarize_threshold"]
+CONFIG_PATH = Path("config.yaml")
 
 console = Console()
+
+
+def load_config() -> Dict[str, Any]:
+    """Load configuration from config.yaml or return defaults."""
+    if CONFIG_PATH.exists():
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                user_config = yaml.safe_load(f) or {}
+            # Merge with defaults
+            config = {**DEFAULT_CONFIG, **user_config}
+            return config
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not load config.yaml: {e}[/yellow]")
+    return DEFAULT_CONFIG.copy()
+
+
+def save_config(config: Dict[str, Any]) -> None:
+    """Save configuration to config.yaml."""
+    with open(CONFIG_PATH, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+
+
+config = load_config()
+
+MODEL = config["model"]
+WORKSPACE_DIR = Path(config["workspace_path"]).resolve()
+MAX_STEPS = config["max_steps"]
+TEMPERATURE = config["temperature"]
+OLLAMA_BASE_URL = config["ollama_base_url"]
 
 # ─── Data Models ────────────────────────────────────────────────────────────
 
@@ -138,9 +135,6 @@ def check_command_safety(command: str) -> Tuple[bool, Optional[str]]:
     Returns:
         Tuple of (is_safe, error_message_if_unsafe)
     """
-    if not ENABLE_SAFETY_CHECKS:
-        return True, None
-    
     # Dangerous patterns that are always blocked
     dangerous_patterns = [
         (r"\brm\s+-rf\b", "rm -rf"),
@@ -169,7 +163,79 @@ def check_command_safety(command: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-# ─── Tool Definitions ───────────────────────────────────────────────────────
+# ─── Safety: Dangerous Command Detection ────────────────────────────────────
+
+# Patterns that are NEVER allowed - these can destroy systems
+DANGEROUS_PATTERNS = [
+    r"rm\s+-rf\s+/",           # rm -rf /
+    r"rm\s+-rf\s+\*",          # rm -rf *
+    r"sudo\s+",                # sudo anything
+    r"chmod\s+777",            # chmod 777
+    r"dd\s+if=",               # dd if= (disk destroyer)
+    r"mkfs\s+",                # mkfs (format filesystem)
+    r":\(\)\s*\{\s*:\|\:&\s*\}\s*;\s*:",  # fork bomb :(){ :|:& };:
+    r"shutdown",               # shutdown
+    r"reboot",                 # reboot
+    r"halt",                   # halt
+    r"poweroff",               # poweroff
+    r">\s*/dev/",              # redirect to device
+    r"chown\s+-R\s+root",      # chown -R root
+    r"chgrp\s+-R\s+root",      # chgrp -R root
+]
+
+# Commands that are allowed but with restrictions
+ALLOWED_COMMANDS = [
+    "ls", "cat", "head", "tail", "grep", "find", "wc", "echo",
+    "pwd", "mkdir", "touch", "cp", "mv", "rm",  # rm without -rf /
+    "python", "python3", "pip", "npm", "node",
+    "git", "curl", "wget", "tar", "gzip", "gunzip",
+    "cd", "which", "whereis", "man", "info",
+]
+
+# Compile dangerous patterns for performance
+DANGEROUS_REGEX = [re.compile(pattern, re.IGNORECASE) for pattern in DANGEROUS_PATTERNS]
+
+
+def is_command_dangerous(command: str) -> Tuple[bool, str]:
+    """
+    Check if a command contains dangerous patterns.
+    
+    Returns:
+        Tuple of (is_dangerous, reason)
+    """
+    command = command.strip()
+    
+    # Check each dangerous pattern
+    for pattern in DANGEROUS_REGEX:
+        if pattern.search(command):
+            return True, f"Command blocked for security reasons: matches dangerous pattern"
+    
+    # Additional check: rm -rf on root or home
+    if re.search(r"rm\s+-rf\s+(/|~|\$HOME|\.)", command):
+        return True, "Command blocked for security reasons: rm -rf on sensitive paths"
+    
+    # Check for command chaining that could hide dangerous commands
+    if "&&" in command or "||" in command or ";" in command:
+        # Split and check each part
+        parts = re.split(r"[;&|]", command)
+        for part in parts:
+            dangerous, reason = is_command_dangerous(part.strip())
+            if dangerous:
+                return True, reason
+    
+    return False, ""
+
+
+def is_path_in_workspace(path: Path) -> bool:
+    """Check if a path is within the workspace directory."""
+    try:
+        resolved = path.resolve()
+        return str(resolved).startswith(str(WORKSPACE_DIR))
+    except Exception:
+        return False
+
+
+# ─── Tool Implementations ───────────────────────────────────────────────────
 
 
 def read_file(path: str, workspace: Path = WORKSPACE_DIR) -> ToolResult:
@@ -281,37 +347,98 @@ def bash_execute(command: str, timeout: int = 30, workspace: Path = WORKSPACE_DI
         return ToolResult(success=False, output="", error=str(e))
 
 
-def web_search(query: str, max_results: int = WEB_SEARCH_MAX_RESULTS, region: str = WEB_SEARCH_REGION) -> ToolResult:
+def web_search(query: str, max_results: int = 5) -> ToolResult:
     """
-    Search the web using DuckDuckGo (free, no API key required).
+    Search the web using DuckDuckGo HTML (free, no API key).
     
     Args:
         query: Search query string.
         max_results: Maximum number of results to return.
-        region: Region code for search (e.g., 'wt-wt' for worldwide).
         
     Returns:
-        ToolResult with search results.
+        ToolResult with search results or error.
     """
     try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, region=region, max_results=max_results))
+        import urllib.parse
+        import urllib.request
+        from html.parser import HTMLParser
         
-        if not results:
-            return ToolResult(success=True, output="No results found.")
+        # Simple HTML parser to extract results
+        class DDGParser(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.results = []
+                self.in_result = False
+                self.current = {}
+                self.capture_text = False
+                self.tag_stack = []
+            
+            def handle_starttag(self, tag, attrs):
+                self.tag_stack.append(tag)
+                attrs_dict = dict(attrs)
+                
+                if tag == "a" and attrs_dict.get("class") == "result__snippet":
+                    self.in_result = True
+                    self.current = {"url": attrs_dict.get("href", "")}
+                elif tag == "a" and attrs_dict.get("class") == "result__url":
+                    self.capture_text = True
+                    self.current["title"] = ""
+            
+            def handle_endtag(self, tag):
+                if self.tag_stack:
+                    self.tag_stack.pop()
+                if tag == "a" and self.in_result:
+                    self.in_result = False
+                    if self.current.get("snippet"):
+                        self.results.append(self.current)
+                        self.current = {}
+                elif tag == "a" and self.capture_text:
+                    self.capture_text = False
+            
+            def handle_data(self, data):
+                if self.in_result and data.strip():
+                    self.current["snippet"] = data.strip()
+                elif self.capture_text and data.strip():
+                    self.current["title"] = data.strip()
         
-        formatted_results = []
-        for i, result in enumerate(results, 1):
+        # Build search URL
+        encoded_query = urllib.parse.quote_plus(query)
+        url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+        
+        # Make request with a browser-like user agent
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            html = response.read().decode("utf-8")
+        
+        # Parse results
+        parser = DDGParser()
+        parser.feed(html)
+        
+        if not parser.results:
+            # Fallback: try to extract from page text
+            return ToolResult(
+                success=True,
+                output=f"Search completed for '{query}'. No structured results found. Try a different query."
+            )
+        
+        # Format results
+        output_lines = [f"Search results for: {query}\n"]
+        for i, result in enumerate(parser.results[:max_results], 1):
             title = result.get("title", "No title")
-            body = result.get("body", "No description")
-            url = result.get("href", "No URL")
-            formatted_results.append(f"{i}. **{title}**\n   {body}\n   Source: {url}\n")
+            snippet = result.get("snippet", "No snippet")
+            url = result.get("url", "No URL")
+            output_lines.append(f"{i}. {title}")
+            output_lines.append(f"   {snippet}")
+            output_lines.append(f"   URL: {url}\n")
         
-        output = "\n".join(formatted_results)
-        return ToolResult(success=True, output=output)
+        return ToolResult(success=True, output="\n".join(output_lines))
     
     except Exception as e:
-        return ToolResult(success=False, output="", error=f"Web search failed: {e}")
+        return ToolResult(success=False, output="", error=f"Web search failed: {str(e)}")
 
 
 # Registry of available tools
@@ -377,7 +504,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "web_search",
-        "description": "Search the web using DuckDuckGo. No API key required. Returns top results with titles, snippets, and URLs.",
+        "description": "Search the web using DuckDuckGo (free, no API key). Returns top results with snippets.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -387,8 +514,8 @@ TOOL_SCHEMAS = [
                 },
                 "max_results": {
                     "type": "integer",
-                    "description": f"Maximum results (default: {WEB_SEARCH_MAX_RESULTS})",
-                    "default": WEB_SEARCH_MAX_RESULTS
+                    "description": "Maximum number of results (default: 5)",
+                    "default": 5
                 }
             },
             "required": ["query"]
@@ -403,7 +530,7 @@ TOOL_SCHEMAS = [
 class OllamaClient:
     """Client for communicating with local Ollama instance."""
     
-    def __init__(self, base_url: str = OLLAMA_BASE_URL, model: str = DEFAULT_MODEL):
+    def __init__(self, base_url: str = OLLAMA_BASE_URL, model: str = MODEL):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.client = httpx.Client(timeout=120.0)
@@ -452,76 +579,107 @@ class OllamaClient:
 # ─── Memory Management ──────────────────────────────────────────────────────
 
 
-def estimate_tokens(text: str) -> int:
-    """Rough token estimation (4 chars ≈ 1 token)."""
-    return len(text) // 4
-
-
-def count_message_tokens(messages: List[Dict[str, str]]) -> int:
-    """Count total tokens in message history."""
-    total = 0
-    for msg in messages:
-        total += estimate_tokens(msg.get("content", ""))
-    return total
-
-
-def summarize_messages(messages: List[Dict[str, str]], keep_recent: int = 4) -> List[Dict[str, str]]:
-    """
-    Summarize older messages to keep context manageable.
-    Keeps the system prompt, first user message, and recent messages.
-    """
-    if len(messages) <= keep_recent + 2:  # system + first user + recent
-        return messages
+class ConversationMemory:
+    """Manages conversation history with summarization for long contexts."""
     
-    # Keep system prompt, first user message, and last N messages
-    system_msg = messages[0] if messages[0]["role"] == "system" else None
-    first_user = next((m for m in messages if m["role"] == "user"), None)
-    recent = messages[-keep_recent:]
+    def __init__(self, max_tokens: int = 8000):
+        self.messages: List[Dict[str, str]] = []
+        self.max_tokens = max_tokens
+        self.summary_count = 0
     
-    # Create summary of middle messages
-    middle = messages[1:-keep_recent] if system_msg else messages[:-keep_recent]
-    if middle:
-        summary_content = "Previous conversation summary:\n"
-        for msg in middle:
-            role = msg["role"]
-            content = msg["content"][:200]  # Truncate
-            summary_content += f"- {role}: {content}...\n"
+    def add_message(self, role: str, content: str) -> None:
+        """Add a message to history."""
+        self.messages.append({"role": role, "content": content})
+    
+    def get_messages(self) -> List[Dict[str, str]]:
+        """Get all messages."""
+        return self.messages.copy()
+    
+    def estimate_tokens(self, text: str) -> int:
+        """Rough token estimation (4 chars ≈ 1 token)."""
+        return len(text) // 4
+    
+    def total_tokens(self) -> int:
+        """Estimate total tokens in conversation."""
+        return sum(self.estimate_tokens(m.get("content", "")) for m in self.messages)
+    
+    def should_summarize(self) -> bool:
+        """Check if conversation needs summarization."""
+        return self.total_tokens() > self.max_tokens
+    
+    def summarize_middle(self, ollama_client: OllamaClient) -> None:
+        """Summarize the middle portion of conversation to reduce tokens."""
+        if len(self.messages) < 6:
+            return  # Not enough to summarize
         
-        summary_msg = {"role": "system", "content": summary_content}
-        result = []
-        if system_msg:
-            result.append(system_msg)
-        result.append(summary_msg)
-        if first_user and first_user != middle[0] if middle else False:
-            result.append(first_user)
-        result.extend(recent)
-        return result
-    
-    return messages
+        # Keep first 2 (system + first user) and last 2 messages
+        # Summarize the middle
+        keep_start = 2
+        keep_end = 2
+        middle = self.messages[keep_start:-keep_end]
+        
+        if not middle:
+            return
+        
+        # Create summary prompt
+        conversation_text = "\n".join(
+            f"{m['role']}: {m['content'][:500]}" for m in middle
+        )
+        
+        summary_prompt = f"""Summarize this conversation history concisely, preserving key facts, decisions, and context:
+
+{conversation_text}
+
+Provide a brief summary:"""
+        
+        try:
+            response = ollama_client.chat([
+                {"role": "system", "content": "You are a helpful assistant that summarizes conversations."},
+                {"role": "user", "content": summary_prompt}
+            ])
+            summary = response.get("message", {}).get("content", "Summary unavailable")
+            
+            # Replace middle with summary
+            self.summary_count += 1
+            summary_msg = {
+                "role": "system",
+                "content": f"[Conversation Summary #{self.summary_count}]: {summary}"
+            }
+            self.messages = self.messages[:keep_start] + [summary_msg] + self.messages[-keep_end:]
+            
+            console.print(f"[dim]📝 Conversation summarized (tokens reduced)[/dim]")
+        except Exception as e:
+            logger.warning(f"Failed to summarize conversation: {e}")
 
 
 # ─── ReAct Agent ────────────────────────────────────────────────────────────
 
 
 class ReActAgent:
-    """ReAct (Reasoning + Acting) loop agent with memory and safety."""
+    """ReAct (Reasoning + Acting) loop agent with safety and memory."""
     
     def __init__(
         self,
-        model: str = DEFAULT_MODEL,
+        model: str = MODEL,
         max_steps: int = MAX_STEPS,
         workspace: Optional[Path] = None,
         temperature: float = TEMPERATURE
     ):
+        global WORKSPACE_DIR
+        WORKSPACE_DIR = workspace or WORKSPACE_DIR
+        WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+        
         self.ollama = OllamaClient(model=model)
+        self.ollama.client.timeout = 120.0
         self.max_steps = max_steps
-        self.workspace = workspace or WORKSPACE_DIR
+        self.memory = ConversationMemory(max_tokens=8000)
         self.temperature = temperature
-        self.state = AgentState()
-        self.conversation_history: List[Dict[str, str]] = []
         
         # System prompt that teaches the agent how to use tools
         self.system_prompt = self._build_system_prompt()
+        
+        # Initialize memory with system prompt
+        self.memory.add_message("system", self.system_prompt)
     
     def _build_system_prompt(self) -> str:
         """Build the system prompt with tool descriptions."""
@@ -535,9 +693,15 @@ class ReActAgent:
 You have access to the following tools:
 {tool_descriptions}
 
-WORKSPACE: {self.workspace}
+WORKSPACE: {WORKSPACE_DIR}
 
-RULES:
+SAFETY RULES (CRITICAL - NEVER VIOLATE):
+1. ALL file operations are restricted to the workspace directory: {WORKSPACE_DIR}
+2. NEVER attempt to access files outside the workspace
+3. NEVER use dangerous commands: rm -rf /, sudo, chmod 777, dd, mkfs, fork bombs, shutdown
+4. The system will BLOCK any dangerous command automatically
+
+WORKFLOW:
 1. Think step by step. Show your reasoning before each tool call.
 2. Use tools when you need information or need to perform actions.
 3. Tool calls must be in the specified JSON format.
@@ -547,8 +711,7 @@ RULES:
 7. All file operations are restricted to the workspace directory.
 8. Dangerous commands (rm -rf, sudo, etc.) are blocked for safety.
 
-TOOL CALL FORMAT:
-When you need to call a tool, respond with a JSON object in this exact format:
+TOOL CALL FORMAT (you MUST respond with valid JSON only when calling tools):
 {{
   "tool_calls": [
     {{
@@ -558,36 +721,38 @@ When you need to call a tool, respond with a JSON object in this exact format:
   ]
 }}
 
-If you don't need to call a tool, just respond normally with your final answer."""
+If you don't need to call a tool, just respond normally with your final answer.
+
+IMPORTANT: If you need to call a tool, respond ONLY with the JSON object above. No extra text, no markdown, no explanation - just the JSON.
+"""
     
     def _print_thinking(self, content: str) -> None:
-        """Print agent's thinking with nice formatting."""
+        """Print agent's reasoning in blue."""
         console.print(Panel(
-            Text(content, style="cyan"),
-            title="🤔 Reasoning",
-            border_style="cyan",
+            Text(content, style="blue"),
+            title="🧠 Reasoning",
+            border_style="blue",
             padding=(0, 1)
         ))
     
     def _print_tool_call(self, tool_call: ToolCall) -> None:
-        """Print tool call with syntax highlighting."""
+        """Print tool call in yellow with syntax highlighting."""
         args_json = json.dumps(tool_call.arguments, indent=2)
         console.print(Panel(
             Syntax(args_json, "json", theme="monokai"),
-            title=f"Tool Call: {tool_call.name}",
+            title=f"🔧 Tool Call: {tool_call.name}",
             border_style="yellow",
             padding=(0, 1)
         ))
     
     def _print_tool_result(self, result: ToolResult) -> None:
-        """Print tool result with color coding."""
-        if success else red."""
+        """Print tool result in green (success) or red (error)."""
         if result.success:
             style = "green"
-            title = "Tool Result"
+            title = "✅ Tool Output"
         else:
             style = "red"
-            title = "Tool Error"
+            title = "❌ Tool Error"
         
         console.print(Panel(
             Text(result.output or result.error or "(no output)", style=style),
@@ -597,42 +762,41 @@ If you don't need to call a tool, just respond normally with your final answer."
         ))
     
     def _print_final_answer(self, answer: str) -> None:
-        """Print final answer."""
+        """Print final answer in bold white."""
         console.print(Panel(
             Markdown(answer),
-            title="💡 Final Answer",
+            title="💬 Final Answer",
             border_style="green",
+            padding=(1, 2)
+        ))
+    
+    )
+    
+    def _print_error(self, error: str) -> None:
+        """Print error in red."""
+        console.print(Panel(
+            Text(error, style="bold red"),
+            title="⚠️ Error",
+            border_style="red",
             padding=(1, 2)
         ))
     
     def _parse_tool_calls(self, response_content: str) -> List[ToolCall]:
         """Parse tool calls from LLM response with retry logic for malformed JSON."""
-        max_retries = 3
-        
-        for attempt in range(max_retries):
-            try:
-                # Try to extract JSON from the response
-                if "tool_calls" in response_content:
-                    # Find JSON object in the response
-                    start = response_content.find("{")
-                    end = response_content.rfind("}") + 1
-                    if start >= 0 and end > start:
-                        json_str = response_content[start:end]
-                        data = json.loads(json_str)
-                        return [ToolCall(**tc) for tc in data.get("tool_calls", [])]
-                return []
-            except (json.JSONDecodeError, KeyError, TypeError) as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"JSON parse attempt {attempt + 1} failed: {e}")
-                    # Ask LLM to fix the JSON
-                    fix_prompt = (
-                        "You returned invalid JSON. Fix it and respond with valid JSON only. "
-                        "Format: {\"tool_calls\": [{\"name\": \"tool_name\", \"arguments\": {...}}]}"
-                    )
-                    # We'll handle this at the agent loop level
-                    return []
-                logger.warning(f"Failed to parse tool calls after {max_retries} attempts: {e}")
-                return []
+        try:
+            # Try to extract JSON from the response
+            if "tool_calls" in response_content:
+                # Find JSON object in the response
+                start = response_content.find("{")
+                end = response_content.rfind("}") + 1
+                if start >= 0 and end > start:
+                    json_str = response_content[start:end]
+                    data = json.loads(json_str)
+                    return [ToolCall(**tc) for tc in data.get("tool_calls", [])]
+            return []
+        except (json.JSONDecodeError, KeyError, TypeError, ValidationError) as e:
+            logger.warning(f"Failed to parse tool calls: {e}")
+            return []
     
     def _execute_tool(self, tool_call: ToolCall) -> ToolResult:
         """Execute a tool call and return result."""
@@ -656,17 +820,19 @@ If you don't need to call a tool, just respond normally with your final answer."
                 error=f"Tool execution failed: {e}"
             )
     
-    def _fix_malformed_json(self, malformed_content: str) -> str:
-        """Ask LLM to fix malformed JSON."""
-        fix_messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": malformed_content},
-            {"role": "assistant", "content": "I need to fix my JSON response."},
-            {"role": "user", "content": "You returned invalid JSON. Fix it and respond with valid JSON only. Format: {\"tool_calls\": [{\"name\": \"tool_name\", \"arguments\": {...}}]}"}
-        ]
+    def _handle_json_parse_error(self) -> str:
+        """Send error back to LLM and get corrected JSON."""
+        error_msg = "You returned invalid JSON. Fix it and respond with valid JSON only."
+        self.memory.add_message("user", error_msg)
         
-        response = self.ollama.chat(fix_messages, tools=TOOL_SCHEMAS, temperature=0.1)
-        return response.get("message", {}).get("content", "")
+        response = self.ollama.chat(
+            self.memory.get_messages(),
+            tools=TOOL_SCHEMAS
+        )
+        
+        content = response.get("message", {}).get("content", "")
+        self.memory.add_message("assistant", content)
+        return content
     
     def run(self, user_prompt: str) -> str:
         """
@@ -678,13 +844,8 @@ If you don't need to call a tool, just respond normally with your final answer."
         Returns:
             Final answer from the agent.
         """
-        # Initialize or continue conversation
-        if not self.conversation_history:
-            self.conversation_history = [
-                {"role": "system", "content": self.system_prompt}
-            ]
-        
-        self.conversation_history.append({"role": "user", "content": user_prompt})
+        # Add user prompt to memory
+        self.memory.add_message("user", user_prompt)
         
         console.print(Panel(
             Text(user_prompt, style="bold white"),
@@ -693,64 +854,62 @@ If you don't need to call a tool, just respond normally with your final answer."
             padding=(1, 2)
         ))
         
-        # Use conversation history as messages
-        self.state = AgentState(
-            messages=self.conversation_history.copy(),
-            step_count=0,
-            finished=False
-        )
-        
-        while not self.state.finished and self.state.step_count < self.max_steps:
-            self.state.step_count += 1
+        step = 0
+        while step < self.max_steps:
+            step += 1
             
-            console.print(f"\n[bold cyan]── Step {self.state.step_count}/{self.max_steps} ──[/bold cyan]\n")
+            console.print(f"\n[bold cyan]── Step {step}/{self.max_steps} ──[/bold cyan]\n")
+            
+            # Check if we need to summarize
+            if self.memory.should_summarize():
+                self.memory.summarize_middle(self.ollama)
             
             # Get LLM response
             response = self.ollama.chat(
-                self.state.messages,
-                tools=TOOL_SCHEMAS,
-                temperature=self.temperature
+                self.memory.get_messages(),
+                tools=TOOL_SCHEMAS
             )
             
             assistant_message = response.get("message", {})
             content = assistant_message.get("content", "")
             
-            # Add assistant message to history
-            self.state.messages.append({"role": "assistant", "content": content})
+            # Add to memory
+            self.memory.add_message("assistant", content)
             
-            # Print thinking (content before any tool calls)
-            if content and "tool_calls" not in content:
-                self._print_thinking(content)
-            
-            # Parse and execute tool calls
+            # Check for tool calls
             tool_calls = self._parse_tool_calls(content)
             
-            # Handle malformed JSON with retry
-            if not tool_calls and "tool_calls" in content:
-                console.print("[yellow]⚠️ Malformed JSON detected, asking LLM to fix...[/yellow]")
-                fixed_content = self._fix_malformed_json(content)
-                tool_calls = self._parse_tool_calls(fixed_content)
-                
-                if tool_calls:
-                    # Replace the malformed message with fixed one
-                    self.state.messages[-1] = {"role": "assistant", "content": fixed_content}
+            # If no tool calls found but content looks like JSON, try parsing again
+            if not tool_calls and content.strip().startswith("{"):
+                # Maybe it's a direct tool call without "tool_calls" wrapper
+                try:
+                    data = json.loads(content)
+                    if "name" in data and "arguments" in data:
+                        tool_calls = [ToolCall(**data)]
+                    elif "tool_calls" in data:
+                        tool_calls = [ToolCall(**tc) for tc in data.get("tool_calls", [])]
+                except json.JSONDecodeError:
+                    pass
             
+            # If still no tool calls, this is the final answer
             if not tool_calls:
-                # No tool calls = final answer
-                self.state.finished = True
-                self.state.final_answer = content
-                self._print_final_answer(content)
-                
-                # Add to conversation history
-                self.conversation_history.append({"role": "assistant", "content": content})
-                
-                # Check if we need to summarize
-                token_count = count_message_tokens(self.conversation_history)
-                if token_count > SUMMARIZE_THRESHOLD:
-                    self.conversation_history = summarize_messages(self.conversation_history)
-                    console.print(f"[dim]📝 Conversation summarized (tokens: {token_count} → ~{count_message_tokens(self.conversation_history)})[/dim]")
-                
-                break
+                # But if it looks like malformed JSON, ask for correction
+                if content.strip().startswith("{") and "tool_calls" not in content:
+                    console.print("[yellow]⚠️ Response looks like JSON but couldn't parse. Asking for correction...[/yellow]")
+                    content = self._handle_json_parse_error()
+                    tool_calls = self._parse_tool_calls(content)
+                    if not tool_calls:
+                        # Give up, treat as final answer
+                        self.memory.messages[-1] = {"role": "assistant", "content": content}
+                        self._print_final_answer(content)
+                        return content
+                else:
+                    self._print_final_answer(content)
+                    return content
+            
+            # Print reasoning (content before tool calls)
+            if content and "tool_calls" not in content:
+                self._print_thinking(content)
             
             # Execute each tool call
             for tool_call in tool_calls:
@@ -758,7 +917,7 @@ If you don't need to call a tool, just respond normally with your final answer."
                 result = self._execute_tool(tool_call)
                 self._print_tool_result(result)
                 
-                # Add tool result to conversation
+                # Add tool result to conversation memory
                 tool_result_msg = {
                     "role": "tool",
                     "content": json.dumps({
@@ -767,44 +926,68 @@ If you don't need to call a tool, just respond normally with your final answer."
                         "success": result.success
                     })
                 }
-                self.state.messages.append(tool_result_msg)
-                self.conversation_history.append(tool_result_msg)
+                self.memory.add_message("tool", tool_result_msg["content"])
         
-        if self.state.step_count >= self.max_steps and not self.state.finished:
-            msg = f"Reached maximum steps ({self.max_steps}). Stopping."
-            console.print(f"[bold red]⚠️ {msg}[/bold red]")
-            self.state.final_answer = msg
-            self.conversation_history.append({"role": "assistant", "content": msg})
-        
-        return self.state.final_answer or "No answer generated."
+        # Max steps reached
+        msg = f"Reached maximum steps ({self.max_steps}). Stopping."
+        self._print_error(msg)
+        return msg
+
+
+# ─── Interactive Chat Loop ──────────────────────────────────────────────────
+
+
+def run_chat_loop(agent: ReActAgent) -> None:
+    """Run continuous chat loop until user types 'exit'."""
+    console.print(Panel(
+        Markdown("""
+# 🤖 Humitron - Local AI Agent
+
+**Commands:**
+- Type your question or task
+- Type `exit` or `quit` to leave
+- Type `clear` to reset conversation history
+- Type `config` to show current configuration
+"""),
+        title="Welcome to Humitron",
+        border_style="cyan",
+        padding=(1, 2)
+    ))
     
-    def chat_loop(self) -> None:
-        """Run continuous chat loop until user exits."""
-        console.print(Panel(
-            Text("Humitron - Local AI Agent\nType 'exit' or 'quit' to quit", style="bold cyan"),
-            title="🤖 Welcome",
-            border_style="cyan",
-            padding=(1, 2)
-        ))
-        
-        while True:
-            try:
-                user_input = Prompt.ask("\n[bold blue]You[/bold blue]")
-                
-                if user_input.lower().strip() in ("exit", "quit", "q"):
-                    console.print("[cyan]Goodbye![/cyan]")
-                    break
-                
-                if not user_input.strip():
-                    continue
-                
-                self.run(user_input)
-                
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Interrupted. Type 'exit' to quit.[/yellow]")
-            except Exception as e:
-                console.print(f"[bold red]Error:[/bold red] {e}")
-                logger.exception("Chat loop error")
+    while True:
+        try:
+            user_input = Prompt.ask("\n[bold cyan]You[/bold cyan]")
+            
+            if user_input.lower().strip() in ("exit", "quit"):
+                console.print("[yellow]👋 Goodbye![/yellow]")
+                break
+            
+            if user_input.lower().strip() == "clear":
+                agent.memory = ConversationMemory()
+                agent.memory.add_message("system", agent.system_prompt)
+                console.print("[green]✨ Conversation history cleared.[/green]")
+                continue
+            
+            if user_input.lower().strip() == "config":
+                console.print(Panel(
+                    Syntax(yaml.dump(config), "yaml", theme="monokai"),
+                    title="⚙️ Current Configuration",
+                    border_style="cyan"
+                ))
+                continue
+            
+            if not user_input.strip():
+                continue
+            
+            agent.run(user_input)
+            
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interrupted. Type 'exit' to quit.[/yellow]")
+        except EOFError:
+            break
+        except Exception as e:
+            console.print(f"[bold red]Error:[/bold red] {e}")
+            logger.exception("Chat loop error")
 
 
 # ─── Main Entry Point ───────────────────────────────────────────────────────
@@ -815,18 +998,14 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Humitron ReAct Agent")
-    parser.add_argument("prompt", nargs="*", help="Prompt for the agent (omit for chat mode)")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Ollama model to use")
+    parser.add_argument("prompt", nargs="*", help="Prompt for the agent (optional, starts chat loop if omitted)")
+    parser.add_argument("--model", default=MODEL, help="Ollama model to use")
     parser.add_argument("--max-steps", type=int, default=MAX_STEPS, help="Max steps per query")
     parser.add_argument("--workspace", type=Path, help="Workspace directory")
     parser.add_argument("--temperature", type=float, default=TEMPERATURE, help="LLM temperature")
-    parser.add_argument("--chat", action="store_true", help="Run in continuous chat mode")
+    parser.add_argument("--no-chat", action="store_true", help="Run single prompt and exit (no chat loop)")
     
     args = parser.parse_args()
-    
-    # Setup logging
-    logger.remove()
-    logger.add(sys.stderr, level="WARNING")
     
     # Create agent
     agent = ReActAgent(
@@ -836,26 +1015,38 @@ def main():
         temperature=args.temperature
     )
     
-    try:
-        if args.chat or not args.prompt:
-            # Chat mode
-            agent.chat_loop()
-        else:
-            # Single prompt mode
-            prompt = " ".join(args.prompt)
+    # If prompt provided, run single query
+    if args.prompt:
+        prompt = " ".join(args.prompt)
+        try:
             agent.run(prompt)
-    except ConnectionError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        console.print("[yellow]Make sure Ollama is running: [bold]ollama serve[/bold][/yellow]")
-        console.print(f"[yellow]And the model is pulled: [bold]ollama pull {args.model}[/bold][/yellow]")
-        sys.exit(1)
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted by user.[/yellow]")
-        sys.exit(0)
-    except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        logger.exception("Agent error")
-        sys.exit(1)
+        except ConnectionError as e:
+            console.print(f"[bold red]Error:[/bold red] {e}")
+            console.print("[yellow]Make sure Ollama is running: [bold]ollama serve[/bold][/yellow]")
+            console.print(f"[yellow]And the model is pulled: [bold]ollama pull {args.model}[/bold][/yellow]")
+            sys.exit(1)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interrupted by user.[/yellow]")
+            sys.exit(0)
+        except Exception as e:
+            console.print(f"[bold red]Error:[/bold red] {e}")
+            logger.exception("Agent error")
+            sys.exit(1)
+    else:
+        # Run interactive chat loop
+        try:
+            run_chat_loop(agent)
+        except ConnectionError as e:
+            console.print(f"[bold red]Error:[/bold red] {e}")
+            console.print("[yellow]Make sure Ollama is running: [bold]ollama serve[/bold][/yellow]")
+            sys.exit(1)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]👋 Goodbye![/yellow]")
+            sys.exit(0)
+        except Exception as e:
+            console.print(f"[bold red]Error:[/bold red] {e}")
+            logger.exception("Chat error")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

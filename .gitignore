@@ -46,3 +46,4 @@ temp/
 
 # Ollama
 ollama_models/
+.dyad/
