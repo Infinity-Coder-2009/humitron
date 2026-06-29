@@ -26,7 +26,7 @@ from rich.prompt import Prompt
 from rich.markdown import Markdown
 from loguru import logger
 
-# ─── Configuration ──────────────────────────────────────────────────────────
+# ─── Configuration Loading ─────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
     "model": "llama3.2",
@@ -91,6 +91,76 @@ class AgentState(BaseModel):
     step_count: int = 0
     finished: bool = False
     final_answer: Optional[str] = None
+    total_tokens: int = 0
+
+
+# ─── Safety & Sandboxing ───────────────────────────────────────────────────
+
+
+class SafetyError(Exception):
+    """Raised when a safety check fails."""
+    pass
+
+
+def validate_path(path: str, workspace: Path) -> Path:
+    """
+    Validate and resolve a path, ensuring it stays within workspace.
+    
+    Args:
+        path: Relative path from workspace
+        workspace: Workspace root directory
+        
+    Returns:
+        Resolved absolute path
+        
+    Raises:
+        SafetyError: If path tries to escape workspace
+    """
+    target_path = (workspace / path).resolve()
+    workspace_resolved = workspace.resolve()
+    
+    if not str(target_path).startswith(str(workspace_resolved)):
+        raise SafetyError(f"Access denied: path '{path}' is outside workspace")
+    
+    return target_path
+
+
+def check_command_safety(command: str) -> Tuple[bool, Optional[str]]:
+    """
+    Check if a command is safe to execute.
+    
+    Args:
+        command: The bash command to check
+        
+    Returns:
+        Tuple of (is_safe, error_message_if_unsafe)
+    """
+    # Dangerous patterns that are always blocked
+    dangerous_patterns = [
+        (r"\brm\s+-rf\b", "rm -rf"),
+        (r"\bsudo\b", "sudo"),
+        (r"\bchmod\s+777\b", "chmod 777"),
+        (r">\s*/dev/", "writing to /dev/"),
+        (r"\bdd\s+if=", "dd command"),
+        (r"\bmkfs\b", "mkfs"),
+        (r":\(\)\s*\{\s*:\|\:&\s*\}\s*;\s*:", "fork bomb"),
+        (r"\bshutdown\b", "shutdown"),
+        (r"\breboot\b", "reboot"),
+        (r"\bmount\b", "mount"),
+        (r"\bumount\b", "umount"),
+        (r"\bfdisk\b", "fdisk"),
+        (r"\bparted\b", "parted"),
+        (r">\s*/etc/", "writing to /etc/"),
+        (r"curl\s+\S+\s*\|\s*(bash|sh)", "pipe to shell"),
+        (r"wget\s+\S+\s*\|\s*(bash|sh)", "pipe to shell"),
+    ]
+    
+    command_lower = command.lower()
+    for pattern, desc in dangerous_patterns:
+        if re.search(pattern, command_lower):
+            return False, f"Command blocked for security reasons: contains dangerous pattern '{desc}'"
+    
+    return True, None
 
 
 # ─── Safety: Dangerous Command Detection ────────────────────────────────────
@@ -168,7 +238,7 @@ def is_path_in_workspace(path: Path) -> bool:
 # ─── Tool Implementations ───────────────────────────────────────────────────
 
 
-def read_file(path: str) -> ToolResult:
+def read_file(path: str, workspace: Path = WORKSPACE_DIR) -> ToolResult:
     """
     Read a file from the workspace.
     
@@ -179,15 +249,7 @@ def read_file(path: str) -> ToolResult:
         ToolResult with file contents or error.
     """
     try:
-        target_path = (WORKSPACE_DIR / path).resolve()
-        
-        # Security check: ensure path is within workspace
-        if not is_path_in_workspace(target_path):
-            return ToolResult(
-                success=False,
-                output="",
-                error=f"Access denied: path '{path}' is outside workspace"
-            )
+        target_path = validate_path(path, workspace)
         
         if not target_path.exists():
             return ToolResult(
@@ -206,11 +268,13 @@ def read_file(path: str) -> ToolResult:
         content = target_path.read_text(encoding="utf-8")
         return ToolResult(success=True, output=content)
     
+    except SafetyError as e:
+        return ToolResult(success=False, output="", error=str(e))
     except Exception as e:
         return ToolResult(success=False, output="", error=str(e))
 
 
-def write_file(path: str, content: str) -> ToolResult:
+def write_file(path: str, content: str, workspace: Path = WORKSPACE_DIR) -> ToolResult:
     """
     Write content to a file in the workspace.
     
@@ -219,55 +283,45 @@ def write_file(path: str, content: str) -> ToolResult:
         content: Content to write to the file.
         
     Returns:
-        ToolResult with success status or error.
+        ToolResult with success status.
     """
     try:
-        target_path = (WORKSPACE_DIR / path).resolve()
+        target_path = validate_path(path, workspace)
         
-        # Security check: ensure path is within workspace
-        if not is_path_in_workspace(target_path):
-            return ToolResult(
-                success=False,
-                output="",
-                error=f"Access denied: path '{path}' is outside workspace"
-            )
-        
-        # Create parent directories if they don't exist
+        # Create parent directories if needed
         target_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Write the file
         target_path.write_text(content, encoding="utf-8")
-        return ToolResult(success=True, output=f"Successfully wrote {len(content)} characters to {path}")
+        return ToolResult(success=True, output=f"Successfully wrote {len(content)} bytes to {path}")
     
+    except SafetyError as e:
+        return ToolResult(success=False, output="", error=str(e))
     except Exception as e:
         return ToolResult(success=False, output="", error=str(e))
 
 
-def bash_execute(command: str, timeout: int = 30) -> ToolResult:
+def bash_execute(command: str, timeout: int = 30, workspace: Path = WORKSPACE_DIR) -> ToolResult:
     """
     Execute a bash command within the workspace directory.
     
     Args:
         command: Bash command to execute.
         timeout: Maximum execution time in seconds.
+        workspace: Working directory for command execution.
         
     Returns:
         ToolResult with command output or error.
     """
-    # Safety check: block dangerous commands
-    dangerous, reason = is_command_dangerous(command)
-    if dangerous:
-        return ToolResult(
-            success=False,
-            output="",
-            error="Command blocked for security reasons."
-        )
+    # Safety check
+    is_safe, error = check_command_safety(command)
+    if not is_safe:
+        return ToolResult(success=False, output="", error=error)
     
     try:
         result = subprocess.run(
             command,
             shell=True,
-            cwd=WORKSPACE_DIR,
+            cwd=workspace,
             capture_output=True,
             text=True,
             timeout=timeout
@@ -413,7 +467,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "write_file",
-        "description": "Write content to a file in the workspace. Creates directories if needed.",
+        "description": "Write content to a file in the workspace. Creates parent directories if needed.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -481,13 +535,14 @@ class OllamaClient:
         self.model = model
         self.client = httpx.Client(timeout=120.0)
     
-    def chat(self, messages: List[Dict[str, str]], tools: Optional[List[Dict]] = None) -> Dict[str, Any]:
+    def chat(self, messages: List[Dict[str, str]], tools: Optional[List[Dict]] = None, temperature: float = TEMPERATURE) -> Dict[str, Any]:
         """
         Send a chat completion request to Ollama.
         
         Args:
             messages: List of message dicts with 'role' and 'content'.
             tools: Optional list of tool schemas for function calling.
+            temperature: LLM temperature for randomness.
             
         Returns:
             Parsed response from Ollama.
@@ -497,7 +552,7 @@ class OllamaClient:
             "messages": messages,
             "stream": False,
             "options": {
-                "temperature": TEMPERATURE,
+                "temperature": temperature,
             }
         }
         
@@ -653,6 +708,8 @@ WORKFLOW:
 4. After each tool result, continue reasoning or provide the final answer.
 5. Maximum {self.max_steps} steps per task.
 6. When you have enough information, provide a clear final answer without calling more tools.
+7. All file operations are restricted to the workspace directory.
+8. Dangerous commands (rm -rf, sudo, etc.) are blocked for safety.
 
 TOOL CALL FORMAT (you MUST respond with valid JSON only when calling tools):
 {{
@@ -713,6 +770,8 @@ IMPORTANT: If you need to call a tool, respond ONLY with the JSON object above. 
             padding=(1, 2)
         ))
     
+    )
+    
     def _print_error(self, error: str) -> None:
         """Print error in red."""
         console.print(Panel(
@@ -750,6 +809,9 @@ IMPORTANT: If you need to call a tool, respond ONLY with the JSON object above. 
             )
         
         try:
+            # Pass workspace to file/bashexec tools
+            if tool_call.name in ("read_file", "write_file", "bash_execute"):
+                return tool_func(**tool_call.arguments, workspace=self.workspace)
             return tool_func(**tool_call.arguments)
         except Exception as e:
             return ToolResult(
@@ -944,10 +1006,6 @@ def main():
     parser.add_argument("--no-chat", action="store_true", help="Run single prompt and exit (no chat loop)")
     
     args = parser.parse_args()
-    
-    # Setup logging
-    logger.remove()
-    logger.add(sys.stderr, level="WARNING")
     
     # Create agent
     agent = ReActAgent(
