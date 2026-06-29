@@ -205,4 +205,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-**Built with ❤️ by the Humitron community**
+**Built by the Humitron community**
