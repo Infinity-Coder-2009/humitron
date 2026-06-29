@@ -1,77 +1,12 @@
-# 🛡️ Humitron: Local-First AI Agent
+# Humitron: Local-First AI Agent
 
-**Humitron is the AI agent that runs on your terms. Private. Auditable. Secure.**
+**Humitron is the AI agent that runs on your terms.**
 
 - **Runs 100% free on your own machine** — Uses Ollama for local inference
 - **Uses any model you want** — Ollama, OpenAI, Claude, Gemini, or OpenRouter
 - **Bursts into cloud when you need extra power** — Pay only for what you use
 - **No subscriptions. No lock-in.** — Just an AI that works for you
 - **Desktop native** — Built for macOS, Windows, and Linux
-- **100% auditable** — No binaries, no obfuscation, no telemetry
-
----
-
-## ⚠️ Security & Trust
-
-**Humitron is open-source and 100% auditable. However, I strongly recommend:**
-
-1. **Never run code you haven't audited**—including this one.
-2. **Run it in a sandbox** (Docker, VM) if you want to test it safely.
-3. **Review the dependencies** by checking [`requirements-lock.txt`](requirements-lock.txt).
-4. **Review the security audit** in [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md).
-5. **Review every file** in this repository before building.
-
-### 📋 Verify This Repository
-
-To verify this repository is legitimate:
-
-1. **Check the commit history**—every change is visible.
-2. **Review the code yourself**—there are no binaries or obfuscated files.
-3. **Build from source**—don't run pre-built binaries.
-4. **Run in a sandbox**—use Docker or a VM.
-5. **Ask questions**—open an issue or join the community.
-
-### 🔍 Audit First, Then Run
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/humitron/humitron.git
-cd humitron
-
-# 2. Audit the code first. Read every file. Understand what it does.
-#    Check: SECURITY_AUDIT.md, SECURITY.md, requirements-lock.txt
-
-# 3. Review the dependency lock file
-pip install pip-audit
-pip-audit -r requirements-lock.txt
-
-# 4. Run the security scanner yourself
-pip install bandit
-bandit -r src/ -f html -o bandit-report.html
-open bandit-report.html
-
-# 5. Build and run in a sandboxed Docker container
-docker build -t humitron .
-docker run -it humitron
-```
-
-### 🛡️ Safe Installation
-
-```bash
-git clone https://github.com/humitron/humitron.git
-cd humitron
-
-# Audit the code first. Read every file. Understand what it does.
-
-# Install from the lock file for exact dependency versions
-pip install -r requirements-lock.txt
-
-# Or run in isolated Docker container
-docker build -t humitron .
-docker run -it humitron
-```
-
----
 
 ## Quick Start
 
@@ -90,8 +25,11 @@ docker run -it humitron
 git clone https://github.com/humitron/humitron.git
 cd humitron
 
-# Always install from the lock file
-pip install -r requirements-lock.txt
+# Install dependencies
+make install
+
+# Or manually:
+# pip install -e ".[dev]"
 ```
 
 ### Configuration
@@ -159,12 +97,6 @@ make lint
 # Type check
 make typecheck
 
-# Run security audit
-make security-audit
-
-# Verify repository integrity
-make verify
-
 # Run all checks
 make all
 
@@ -218,10 +150,6 @@ humitron/
 ├── config.yaml                  # Default configuration
 ├── .env.example                 # Environment variable template
 ├── requirements.txt             # Python dependencies
-├── requirements-lock.txt        # 🔒 Pinned exact dependency versions
-├── SECURITY_AUDIT.md            # 🔒 Security audit report
-├── SECURITY.md                  # 🔒 Security policy
-├── Dockerfile                   # 🐳 Sandboxed container
 ├── pyproject.toml              # Project metadata & tool config
 ├── Makefile                     # Build automation
 └── README.md                    # This file
@@ -251,9 +179,6 @@ humitron/
 - **Command filtering**: Dangerous commands (rm -rf /, sudo, chmod 777, etc.) are blocked
 - **Token budgets**: Automatic context summarization prevents token overflow
 - **Rate limiting**: Configurable request/token limits
-- **No telemetry**: Nothing phones home, ever
-- **Auditable**: Every line of code is visible and documented
-- **Dependency locked**: Exact versions in [`requirements-lock.txt`](requirements-lock.txt)
 
 ### Extending Humitron
 
@@ -279,10 +204,10 @@ await client.connect_server("github")
 ### Docker
 
 ```bash
-# Build image with security audits
+# Build image
 make docker-build
 
-# Run in isolated sandbox
+# Run container
 make docker-run
 ```
 
@@ -310,4 +235,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-**Built by the Humitron community** — **Auditable. Transparent. Trustworthy.**
+**Built by the Humitron community**
