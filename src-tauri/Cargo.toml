@@ -1,0 +1,27 @@
+[package]
+name = "humitron"
+version = "0.2.0"
+description = "Local-first AI Agent with MCP Integration"
+authors = ["Humitron Contributors"]
+license = "MIT"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = ["shell-sidecar", "shell-open", "fs-all", "dialog-all", "process-relaunch", "cli"] }
+tauri-plugin-shell = "2.0"
+tauri-plugin-fs = "2.0"
+tauri-plugin-dialog = "2.0"
+tauri-plugin-process = "2.0"
+tauri-plugin-opener = "2.0"
+tauri-plugin-http = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+anyhow = "1.0"
+thiserror = "1.0"
+dirs = "5.0"
+notify = { version = "6.0", features = ["tokio"] }
