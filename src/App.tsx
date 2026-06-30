@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSessions } from './context/SessionContext'
 import { useConfig } from './context/ConfigContext'
 import { useBackend } from './hooks/useBackend'
@@ -10,13 +10,12 @@ import { ChatInput } from './components/Chat'
 import { CostMeter } from './components/CostMeter'
 import { SettingsPanel } from './components/Settings'
 import { WelcomeScreen } from './components/Welcome'
-import { tauri } from '@tauri-apps/api'
-import { cn } from './utils/cn'
+import { invoke } from '@tauri-apps/api/core'
 
 function App() {
   const { sessions, currentSession, createSession } = useSessions()
-  const { config, updateConfig } = useConfig()
-  const { health, loading: healthLoading } = useBackend()
+  const { config } = useConfig()
+  const { health } = useBackend()
   const [showSettings, setShowSettings] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [backendStarted, setBackendStarted] = useState(false)
@@ -29,27 +28,17 @@ function App() {
       maxSteps: config.maxSteps,
       workspace: config.workspace,
     },
-    onMessageAdd: (message) => {
-      if (currentSession) {
-        // Message added via session context
-      }
-    },
-    onMessageUpdate: (messageId, updates) => {
-      // Handled by session context
-    },
-    onToolCallUpdate: (messageId, toolCallId, updates) => {
-      // Handled by session context
-    },
+    onMessageAdd: () => {},
+    onMessageUpdate: () => {},
+    onToolCallUpdate: () => {},
   })
 
-  // Auto-create first session
   useEffect(() => {
     if (sessions.length === 0) {
       createSession('Welcome')
     }
   }, [sessions.length, createSession])
 
-  // Check if first run
   useEffect(() => {
     const firstRun = !localStorage.getItem('humitron-first-run-complete')
     if (firstRun) {
@@ -57,10 +46,9 @@ function App() {
     }
   }, [])
 
-  // Start backend sidecar
   useEffect(() => {
     if (!backendStarted) {
-      tauri.invoke('start_sidecar', { workspace: config.workspace })
+      invoke('start_sidecar', { workspace: config.workspace })
         .then(() => setBackendStarted(true))
         .catch(console.error)
     }
@@ -116,6 +104,7 @@ function App() {
             <CostMeter cost={cost} />
           )}
         </div>
+      </div>
       </div>
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>

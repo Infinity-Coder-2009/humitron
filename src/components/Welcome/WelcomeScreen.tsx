@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
-import { useConfig } from '../../context/ConfigContext'
+import React, { useState, useEffect } from 'react'
 import { useBackend } from '../../hooks/useBackend'
 import { cn } from '../../utils/cn'
 import { ArrowRight, Check, AlertCircle, Loader2, Terminal, Box, Brain, Sparkles } from 'lucide-react'
-import { tauri } from '@tauri-apps/api'
+import { invoke } from '@tauri-apps/api/core'
+import { useConfig } from '../../context/ConfigContext'
 
 const steps = [
   {
@@ -58,7 +58,7 @@ const steps = [
     check: async () => true,
     action: async () => {
       try {
-        const path = await tauri.invoke('pick_folder')
+        const path = await invoke('pick_folder')
         if (path) {
           const { updateConfig } = await import('../../context/ConfigContext')
           updateConfig({ workspace: path })
@@ -89,11 +89,12 @@ const steps = [
 
 export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
   const { health } = useBackend()
+  const { config, updateConfig } = useConfig()
   const [currentStep, setCurrentStep] = useState(0)
   const [stepStates, setStepStates] = useState<Record<string, 'pending' | 'checking' | 'complete' | 'error'>>({})
   const [completed, setCompleted] = useState(false)
 
-  React.useEffect(() => {
+  useEffect(() => {
     const checkAllSteps = async () => {
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i]

@@ -1,6 +1,5 @@
-import React from 'react'
 import { cn } from '../../utils/cn'
-import { DollarSign, TrendingUp, Info } from 'lucide-react'
+import { DollarSign, Info } from 'lucide-react'
 
 interface CostMeterProps {
   cost: {

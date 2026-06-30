@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 import { Config } from '../types'
 
 interface ConfigContextType {
@@ -17,6 +17,7 @@ const DEFAULT_CONFIG: Config = {
   ollamaUrl: 'http://localhost:11434',
   theme: 'system',
   enableMcp: false,
+  cloudApiKey: '',
 }
 
 export function ConfigProvider({ children }: { children: ReactNode }) {

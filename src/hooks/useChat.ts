@@ -36,7 +36,6 @@ export function useChat({
     abortControllerRef.current = new AbortController()
 
     // Add user message
-    const userMessageId = generateId()
     onMessageAdd({
       role: 'user',
       content: prompt,
@@ -71,7 +70,6 @@ export function useChat({
             onMessageUpdate(assistantMessageId, { 
               toolCalls: [...(onMessageUpdate.toString().includes('toolCalls') ? [] : []), toolCall] 
             })
-            // We'll update via the tool call update function
             setTimeout(() => {
               onToolCallUpdate(assistantMessageId, toolCall.id, { status: 'running' })
             }, 0)

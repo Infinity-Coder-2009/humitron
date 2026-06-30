@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { cn } from '../../utils/cn'
-import { Send, Mic, Paperclip, X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -11,7 +11,6 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, disabled, streaming, onStop }: ChatInputProps) {
   const [value, setValue] = useState('')
-  const [showAttach, setShowAttach] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSubmit = (e: React.FormEvent) => {

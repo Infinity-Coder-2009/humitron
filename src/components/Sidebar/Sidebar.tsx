@@ -2,7 +2,7 @@ import React from 'react'
 import { useSessions } from '../../context/SessionContext'
 import { useConfig } from '../../context/ConfigContext'
 import { cn } from '../../utils/cn'
-import { Plus, X, Edit, MoreVertical, FolderOpen, Settings, Sun, Moon, Monitor } from 'lucide-react'
+import { Plus, Sun, Moon, Monitor } from 'lucide-react'
 import { formatRelativeTime } from '../../utils/helpers'
 import { SessionItem } from './SessionItem'
 import { NewSessionDialog } from './NewSessionDialog'
@@ -96,7 +96,6 @@ export function Sidebar() {
         <button
           className="sidebar-item w-full justify-start"
         >
-          <Settings className="w-5 h-5" />
           <span>Settings</span>
         </button>
       </div>

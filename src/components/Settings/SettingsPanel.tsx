@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useConfig } from '../../context/ConfigContext'
 import { useBackend } from '../../hooks/useBackend'
 import { cn } from '../../utils/cn'
-import { X, Save, FolderOpen, Key, Brain, Thermometer, SlidersHorizontal } from 'lucide-react'
-import { tauri } from '@tauri-apps/api'
+import { X, Save, FolderOpen, Key, Brain, SlidersHorizontal } from 'lucide-react'
+import { invoke } from '@tauri-apps/api/core'
 
 export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { config, updateConfig } = useConfig()
@@ -19,9 +19,8 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
       workspace: testWorkspace,
       cloudApiKey: apiKey || undefined,
     })
-    // Save to backend too
     try {
-      await tauri.invoke('update_config', { config: { workspace: testWorkspace } })
+      await invoke('update_config', { config: { workspace: testWorkspace } })
     } catch (e) {
       console.error('Failed to save config to backend:', e)
     }
@@ -46,7 +45,6 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
         </div>
 
         <div className="space-y-6 pr-4">
-          {/* Model Section */}
           <section>
             <h3 className="font-medium text-gray-300 mb-4 flex items-center gap-2">
               <Brain className="w-5 h-5 text-primary-500" />
@@ -138,7 +136,6 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
             </div>
           </section>
 
-          {/* Workspace Section */}
           <section>
             <h3 className="font-medium text-gray-300 mb-4 flex items-center gap-2">
               <FolderOpen className="w-5 h-5 text-primary-500" />
@@ -156,7 +153,7 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 <button
                   onClick={async () => {
                     try {
-                      const path = await tauri.invoke('pick_folder')
+                      const path = await invoke('pick_folder')
                       if (path) setTestWorkspace(path)
                     } catch (e) {
                       console.error('Failed to pick folder:', e)
@@ -172,7 +169,6 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
             </div>
           </section>
 
-          {/* Ollama Status */}
           <section>
             <h3 className="font-medium text-gray-300 mb-4">Ollama Status</h3>
             <div className="card">

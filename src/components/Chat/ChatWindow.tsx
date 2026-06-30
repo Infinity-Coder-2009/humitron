@@ -1,10 +1,7 @@
 import React, { useRef, useEffect } from 'react'
 import { Message } from '../../types'
-import { formatRelativeTime } from '../../utils/helpers'
 import { cn } from '../../utils/cn'
 import { MessageBubble } from './MessageBubble'
-import { ThinkingPanel } from './ThinkingPanel'
-import { ToolCallCard } from './ToolCallCard'
 
 interface ChatWindowProps {
   messages: Message[];
@@ -13,7 +10,7 @@ interface ChatWindowProps {
   onScrollToBottom: () => void;
 }
 
-export function ChatWindow({ messages, streaming, currentMessageId, onScrollToBottom }: ChatWindowProps) {
+export function ChatWindow({ messages, streaming, currentMessageId }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -37,7 +34,7 @@ export function ChatWindow({ messages, streaming, currentMessageId, onScrollToBo
       className="flex-1 overflow-y-auto p-4 space-y-4"
       onWheel={handleWheel}
     >
-      {messages.map((message, index) => (
+      {messages.map((message) => (
         <div key={message.id} className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
           <MessageBubble message={message} />
         </div>

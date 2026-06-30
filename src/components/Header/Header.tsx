@@ -2,7 +2,7 @@ import React from 'react'
 import { useConfig } from '../../context/ConfigContext'
 import { useBackend } from '../../hooks/useBackend'
 import { cn } from '../../utils/cn'
-import { Brain, Zap, Server, Wifi, WifiOff, AlertCircle, CheckCircle } from 'lucide-react'
+import { Brain, CheckCircle } from 'lucide-react'
 
 export function Header() {
   const { config, updateConfig } = useConfig()

@@ -14,7 +14,7 @@ interface MessageBubbleProps {
   isStreaming?: boolean;
 }
 
-export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = React.useState(false)
 

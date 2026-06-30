@@ -1,12 +1,10 @@
 import axios, { AxiosInstance } from 'axios'
-import { Message, ToolCall, HealthStatus, OllamaModel, CostInfo } from '../types'
+import { Message, HealthStatus, OllamaModel } from '../types'
 
 class ApiClient {
   private client: AxiosInstance
-  private baseUrl: string
 
   constructor(baseUrl: string = 'http://localhost:8000') {
-    this.baseUrl = baseUrl
     this.client = axios.create({
       baseURL: baseUrl,
       timeout: 30000,
@@ -17,7 +15,6 @@ class ApiClient {
   }
 
   setBaseUrl(url: string) {
-    this.baseUrl = url
     this.client.defaults.baseURL = url
   }
 
