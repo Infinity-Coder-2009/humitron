@@ -1,34 +1,34 @@
-import { useState } from 'react'
-import { useConfig } from '../../context/ConfigContext'
-import { useBackend } from '../../hooks/useBackend'
-import { cn } from '../../utils/cn'
-import { X, Save, FolderOpen, Key, Brain, SlidersHorizontal } from 'lucide-react'
-import { invoke } from '@tauri-apps/api/core'
+import { useState } from 'react';
+import { useConfig } from '../../context/ConfigContext';
+import { useBackend } from '../../hooks/useBackend';
+import { cn } from '../../utils/cn';
+import { X, Save, FolderOpen, Key, Brain, SlidersHorizontal, ProviderIcon } from '../Icons/ProviderIcons';
+import { invoke } from '@tauri-apps/api/core';
 
 export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { config, updateConfig } = useConfig()
-  const { health } = useBackend()
-  const [testWorkspace, setTestWorkspace] = useState(config.workspace)
-  const [apiKey, setApiKey] = useState(config.cloudApiKey || '')
-  const [showApiKey, setShowApiKey] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const { config, updateConfig } = useConfig();
+  const { health } = useBackend();
+  const [testWorkspace, setTestWorkspace] = useState(config.workspace);
+  const [apiKey, setApiKey] = useState(config.cloudApiKey || '');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    setSaving(true)
+    setSaving(true);
     updateConfig({ 
       workspace: testWorkspace,
       cloudApiKey: apiKey || undefined,
-    })
+    });
     try {
-      await invoke('update_config', { config: { workspace: testWorkspace } })
+      await invoke('update_config', { config: { workspace: testWorkspace } });
     } catch (e) {
-      console.error('Failed to save config to backend:', e)
+      console.error('Failed to save config to backend:', e);
     }
-    setSaving(false)
-    onClose()
-  }
+    setSaving(false);
+    onClose();
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -52,7 +52,7 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Model</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Default Model</label>
                 <select
                   value={config.model}
                   onChange={e => updateConfig({ model: e.target.value })}
@@ -76,34 +76,10 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'].includes(config.model) 
-                    ? 'Cloud model - requires API key below' 
+                    ? 'Cloud model - requires API key in AI Providers settings' 
                     : 'Local model - runs via Ollama (free)'}
                 </p>
               </div>
-
-              {['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'].includes(config.model) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                    Cloud API Key
-                    <Key className="w-4 h-4" />
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showApiKey ? 'text' : 'password'}
-                      value={apiKey}
-                      onChange={e => setApiKey(e.target.value)}
-                      placeholder="sk-... or sk-ant-..."
-                      className="input pr-12"
-                    />
-                    <button
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
-                    >
-                      {showApiKey ? '🙈' : '👁️'}
-                    </button>
-                  </div>
-                </div>
-              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -153,10 +129,10 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 <button
                   onClick={async () => {
                     try {
-                      const path = await invoke('pick_folder')
-                      if (path) setTestWorkspace(path)
+                      const path = await invoke('pick_folder');
+                      if (path) setTestWorkspace(path);
                     } catch (e) {
-                      console.error('Failed to pick folder:', e)
+                      console.error('Failed to pick folder:', e);
                     }
                   }}
                   className="btn-secondary"
@@ -179,7 +155,7 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
                   <p className="text-sm text-gray-500">
                     {health.ollamaRunning 
                       ? `${health.models.length} model(s) available` 
-                      : 'Install Ollama from ollama.ai'}
+                      : 'Install Ollama from ollama.ai for local models'}
                   </p>
                 </div>
               </div>
@@ -208,5 +184,5 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
         </div>
       </div>
     </div>
-  )
+  );
 }
