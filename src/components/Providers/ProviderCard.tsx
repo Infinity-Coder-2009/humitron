@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { AIProvider } from '../../types/providers'
 import { cn } from '../../utils/cn'
 import { ProviderIcon, KeyIcon, GlobeIcon, ModelIcon, AlertIcon, CheckIcon, DeleteIcon, TestIcon, ToggleIcon } from '../Icons/ProviderIcons'
-import { cn } from '../../utils/cn'
 
 interface ProviderCardProps {
   provider: AIProvider
