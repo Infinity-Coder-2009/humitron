@@ -50,18 +50,17 @@ export function SessionItem({ session, isActive, onClick, onRename, onDelete }: 
             <MoreVertical className="w-4 h-4" />
           </button>
           {showMenu && (
-            <div className="relative inset-0 z-10" onClick={() => setShowMenu(false)} />
-            <div className="absolute right-2 top-full z-20 card min-w-[160px] shadow-lg animate-slide-down">
-              <button onClick={(e) => { e.stopPropagation(); onRename(); setShowMenu(false) }} className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-dark-elevated rounded">
-                <Edit className="w-4 h-4" />
-                Rename
-              </button>
-              <button onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false) }} className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-dark-elevated rounded">
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </button>
-            </div>
-          )}
+  <>
+    <div className="relative inset-0 z-10" onClick={() => setShowMenu(false)} />
+    <div className="absolute right-2 top-full z-20 card min-w-[160px] shadow-lg animate-slide-down">
+      <button onClick={(e) => { e.stopPropagation(); onRename(); setShowMenu(false) }} className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-dark-elevated rounded">
+        <Edit className="w-4 h-4" />
+        Rename
+      </button>
+      {/* other buttons... */}
+    </div>
+  </>
+)}
         </div>
       </div>
     </div>
