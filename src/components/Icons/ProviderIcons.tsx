@@ -18,7 +18,7 @@ export const AnthropicIcon: React.FC<{ className?: string }> = ({ className }) =
 
 export const GeminiIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.33,0-5.683-2.015-5.683-5.171c0-3.062,2.24-5.112,5.522-5.171V3.56C10.705,3.504,8.948,4.4,7.47,6.016c-1.23,1.351-1.967,3.167-1.967,5.261c0,3.381,2.564,6.122,6.209,6.122c2.012,0,3.891-0.767,5.023-2.07l-1.558-1.516c-0.696,0.748-1.655,1.252-2.779,1.252c-2.252,0-3.842-1.837-3.842-4.338c0-2.464,1.555-4.27,3.808-4.27c1.078,0,2.012,0.478,2.713,1.179L12.545,10.239z"/>
+    <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.33,0-5.683-2.015-5.683-5.171c0-3.062,2.24-5.112,5.522-5.171V3.56C10.705,3.504,84,8.948,4.4,7.47,6.016c-1.23,1.351-1.967,3.167-1.967,5.261c0,3.381,2.564,6.122,6.209,6.122c2.012,0,3.891-0.767,5.023-2.07l-1.558-1.516c-0.696,0.748-1.655,1.252-2.779,1.252c-2.252,0-3.842-1.837-3.842-4.338c0-2.464,1.555-4.27,3.808-4.27c1.078,0,2.012,0.478,2.713,1.179L12.545,10.239z"/>
     <path d="M12.545,18.994c-1.119-1.851-2.689-3.902-2.689-5.952c0-2.251,1.883-3.991,4.428-3.991c1.82,0,3.131,1.019,3.131,2.51v0.658H17.43v-0.727c0-1.55-1.188-2.522-2.639-2.522c-1.598,0-2.885,1.22-2.885,2.989c0,2.345,1.91,3.875,4.324,3.875c1.343,0,2.433-0.54,3.121-1.418l1.417,1.412C19.992,22.736,16.783,24,12.545,24C7.34,24,3,19.66,3,14.46S7.34,4.92,12.545,4.92c5.11,0,8.216,3.927,8.216,8.727c0,2.252-0.927,4.217-2.38,5.633L12.545,18.994z"/>
   </svg>
 );
@@ -121,6 +121,20 @@ export const SettingsIcon: React.FC<{ className?: string }> = ({ className }) =>
   </svg>
 );
 
+export const SlidersHorizontalIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="4" y1="21" x2="4" y2="14"/>
+    <line x1="4" y1="10" x2="4" y2="3"/>
+    <line x1="12" y1="21" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12" y2="3"/>
+    <line x1="20" y1="21" x2="20" y2="16"/>
+    <line x1="20" y1="12" x2="20" y2="3"/>
+    <line x1="1" y1="14" x2="7" y2="14"/>
+    <line x1="9" y1="8" x2="15" y2="8"/>
+    <line x1="17" y1="16" x2="23" y2="16"/>
+  </svg>
+);
+
 export const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12"/>
@@ -191,3 +205,4 @@ export const ProviderIcon: React.FC<{ type: string; className?: string }> = ({ t
 export const Brain = BrainIcon;
 export const FolderOpen = FolderOpenIcon;
 export const Save = SaveIcon;
+export const SlidersHorizontal = SlidersHorizontalIcon;
