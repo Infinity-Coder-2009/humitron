@@ -1,9 +1,7 @@
 import React from 'react'
 import { useSessions } from '../../context/SessionContext'
 import { useConfig } from '../../context/ConfigContext'
-import { cn } from '../../utils/cn'
 import { Plus, Sun, Moon, Monitor } from 'lucide-react'
-import { formatRelativeTime } from '../../utils/helpers'
 import { SessionItem } from './SessionItem'
 import { NewSessionDialog } from './NewSessionDialog'
 

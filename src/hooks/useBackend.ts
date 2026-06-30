@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiClient } from '../api/client'
-import { HealthStatus, OllamaModel } from '../types'
+import { HealthStatus } from '../types'
+import type { OllamaModel } from '../types'
 
 export function useBackend() {
   const [health, setHealth] = useState<HealthStatus>({

@@ -125,15 +125,15 @@ export function useProviders() {
   }, []);
 
   // Save providers to localStorage
-  const saveProviders = useCallback((newProviders: AIProvider[], newActiveId?: string) => {
-    const config: ProviderConfig = {
-      providers: newProviders,
-      activeProviderId: newActiveId ?? activeProviderId,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    setProviders(newProviders);
-    if (newActiveId !== undefined) setActiveProviderId(newActiveId);
-  }, [activeProviderId]);
+    const saveProviders = useCallback((newProviders: AIProvider[], newActiveId?: string | null) => {
+      const config: ProviderConfig = {
+        providers: newProviders,
+        activeProviderId: newActiveId ?? activeProviderId,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      setProviders(newProviders);
+      if (newActiveId !== undefined) setActiveProviderId(newActiveId);
+    }, [activeProviderId]);
 
   const updateProvider = useCallback((id: string, updates: Partial<AIProvider>) => {
     setProviders(prev => {
@@ -160,7 +160,7 @@ export function useProviders() {
   const deleteProvider = useCallback((id: string) => {
     setProviders(prev => {
       const filtered = prev.filter(p => p.id !== id);
-      const newActiveId = activeProviderId === id ? (filtered[0]?.id || null) : activeProviderId;
+      const newActiveId = activeProviderId === id ? (filtered[0]?.id || activeProviderId) : activeProviderId;
       saveProviders(filtered, newActiveId);
       return filtered;
     });
