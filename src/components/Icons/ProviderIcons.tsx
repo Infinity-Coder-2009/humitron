@@ -136,7 +136,7 @@ export const SlidersHorizontalIcon: React.FC<{ className?: string }> = ({ classN
 );
 
 export const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12"/>
   </svg>
 );
@@ -170,7 +170,7 @@ export const FolderOpenIcon: React.FC<{ className?: string }> = ({ className }) 
 );
 
 export const SparklesIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 2v20"/>
     <path d="M17 7H7"/>
     <path d="M19 12H5"/>
