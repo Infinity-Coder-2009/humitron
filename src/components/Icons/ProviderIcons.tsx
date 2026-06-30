@@ -170,7 +170,7 @@ export const FolderOpenIcon: React.FC<{ className?: string }> = ({ className }) 
 );
 
 export const SparklesIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg className={className} viewBox="0 0 24 24" fill="fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 2v20"/>
     <path d="M17 7H7"/>
     <path d="M19 12H5"/>
@@ -190,6 +190,13 @@ export const SaveIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+export const XIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
 export const ProviderIcon: React.FC<{ type: string; className?: string }> = ({ type, className }) => {
   switch (type) {
     case 'openai': return <OpenAIIcon className={className} />;
@@ -206,3 +213,4 @@ export const Brain = BrainIcon;
 export const FolderOpen = FolderOpenIcon;
 export const Save = SaveIcon;
 export const SlidersHorizontal = SlidersHorizontalIcon;
+export const X = XIcon;
