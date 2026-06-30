@@ -93,7 +93,7 @@ function App() {
           )}
           {!currentSession && (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-gray-500">
+              <div className className="text-center text-gray-500">
                 <p className="text-lg mb-2">No active session</p>
                 <p className="text-sm">Create a new session from the sidebar to start chatting</p>
               </div>
@@ -104,7 +104,6 @@ function App() {
             <CostMeter cost={cost} />
           )}
         </div>
-      </div>
       </div>
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
