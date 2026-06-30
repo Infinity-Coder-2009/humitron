@@ -1,28 +1,28 @@
-import { useEffect, useState } from 'react';
-import { useSessions } from './context/SessionContext';
-import { useConfig } from './context/ConfigContext';
-import { useBackend } from './hooks/useBackend';
-import { useChat } from './hooks/useChat';
-import { useProviders } from './hooks/useProviders';
-import { Sidebar } from './components/Sidebar';
-import { Header } from './components/Header';
-import { ChatWindow } from './components/Chat';
-import { ChatInput } from './components/Chat';
-import { CostMeter } from './components/CostMeter';
-import { SettingsPanel } from './components/Settings';
-import { WelcomeScreen } from './components/Welcome';
-import { ProvidersPage } from './components/Providers';
-import { invoke } from '@tauri-apps/api/core';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react'
+import { useSessions } from './context/SessionContext'
+import { useConfig } from './context/ConfigContext'
+import { useBackend } from './hooks/useBackend'
+import { useChat } from './hooks/useChat'
+import { useProviders } from './hooks/useProviders'
+import { Sidebar } from './components/Sidebar'
+import { Header } from './components/Header'
+import { ChatWindow } from './components/Chat'
+import { ChatInput } from './components/Chat'
+import { CostMeter } from './components/CostMeter'
+import { SettingsPanel } from './components/Settings'
+import { WelcomeScreen } from './components/Welcome'
+import { ProvidersPage } from './components/Providers'
+import { invoke } from '@tauri-apps/api/core'
+import { Routes, Route, Navigate } from 'react-router-dom'
 
 function App() {
-  const { sessions, currentSession, createSession } = useSessions();
-  const { config } = useConfig();
-  const { health } = useBackend();
-  const { getActiveProvider } = useProviders();
-  const [showSettings, setShowSettings] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [backendStarted, setBackendStarted] = useState(false);
+  const { sessions, currentSession, createSession } = useSessions()
+  const { config } = useConfig()
+  const { health } = useBackend()
+  const { getActiveProvider } = useProviders()
+  const [showSettings, setShowSettings] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [backendStarted, setBackendStarted] = useState(false)
 
   const { streaming, currentMessageId, cost, sendMessage, stopStreaming } = useChat({
     sessionId: currentSession?.id || '',
@@ -35,44 +35,42 @@ function App() {
     onMessageAdd: () => {},
     onMessageUpdate: () => {},
     onToolCallUpdate: () => {},
-  });
+  })
 
   useEffect(() => {
     if (sessions.length === 0) {
-      createSession('Welcome');
+      createSession('Welcome')
     }
-  }, [sessions.length, createSession]);
+  }, [sessions.length, createSession])
 
   useEffect(() => {
-    const firstRun = !localStorage.getItem('humitron-first-run-complete');
+    const firstRun = !localStorage.getItem('humitron-first-run-complete')
     if (firstRun) {
-      setShowWelcome(true);
+      setShowWelcome(true)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     if (!backendStarted) {
       invoke('start_sidecar', { workspace: config.workspace })
         .then(() => setBackendStarted(true))
-        .catch(console.error);
+        .catch(console.error)
     }
-  }, [backendStarted, config.workspace]);
+  }, [backendStarted, config.workspace])
 
   const handleSendMessage = (text: string) => {
     if (currentSession) {
-      sendMessage(text);
+      sendMessage(text)
     }
-  };
+  }
 
   const completeWelcome = () => {
-    localStorage.setItem('humitron-first-run-complete', 'true');
-    setShowWelcome(false);
-  };
-
-  const activeProvider = getActiveProvider();
+    localStorage.setItem('humitron-first-run-complete', 'true')
+    setShowWelcome(false)
+  }
 
   if (showWelcome) {
-    return <WelcomeScreen onComplete={completeWelcome} />;
+    return <WelcomeScreen onComplete={completeWelcome} />
   }
 
   return (
@@ -121,7 +119,7 @@ function App() {
       </div>
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
-  );
+  )
 }
 
-export default App;
+export default App

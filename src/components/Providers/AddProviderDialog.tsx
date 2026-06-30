@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { AIProvider } from '../../types/providers';
-import { cn } from '../../utils/cn';
-import { X, CheckIcon, ProviderIcon } from '../Icons/ProviderIcons';
-import { KeyIcon, GlobeIcon, ModelIcon } from '../Icons/ProviderIcons';
-import { generateId } from '../../utils/helpers';
+import { useState, useEffect, useRef } from 'react'
+import { AIProvider } from '../../types/providers'
+import { cn } from '../../utils/cn'
+import { X, CheckIcon, ProviderIcon, KeyIcon, GlobeIcon, ModelIcon } from '../Icons/ProviderIcons'
 
 interface AddProviderDialogProps {
-  onClose: () => void;
-  onAdd: (provider: Omit<AIProvider, 'id' | 'enabled' | 'lastTested' | 'testStatus' | 'testMessage'>) => void;
+  onClose: () => void
+  onAdd: (provider: Omit<AIProvider, 'id' | 'enabled' | 'lastTested' | 'testStatus' | 'testMessage'>) => void
 }
 
 const PROVIDER_TEMPLATES = {
@@ -17,28 +15,28 @@ const PROVIDER_TEMPLATES = {
   openrouter: { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', modelId: 'meta-llama/llama-3.1-8b-instruct', type: 'openrouter' as const },
   ollama: { name: 'Ollama', baseUrl: 'http://localhost:11434', modelId: 'llama3.2', type: 'ollama' as const },
   custom: { name: 'Custom Provider', baseUrl: 'https://api.example.com/v1', modelId: 'my-model', type: 'custom' as const },
-};
+}
 
 export function AddProviderDialog({ onClose, onAdd }: AddProviderDialogProps) {
-  const [selectedType, setSelectedType] = useState<'openai' | 'anthropic' | 'gemini' | 'openrouter' | 'ollama' | 'custom'>('openai');
-  const [name, setName] = useState('');
-  const [baseUrl, setBaseUrl] = useState('');
-  const [modelId, setModelId] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const nameRef = useRef<HTMLInputElement>(null);
+  const [selectedType, setSelectedType] = useState<'openai' | 'anthropic' | 'gemini' | 'openrouter' | 'ollama' | 'custom'>('openai')
+  const [name, setName] = useState('')
+  const [baseUrl, setBaseUrl] = useState('')
+  const [modelId, setModelId] = useState('')
+  const [apiKey, setApiKey] = useState('')
+  const [showKey, setShowKey] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    const template = PROVIDER_TEMPLATES[selectedType];
-    setName(template.name);
-    setBaseUrl(template.baseUrl);
-    setModelId(template.modelId);
-    setApiKey('');
-    nameRef.current?.focus();
-  }, [selectedType]);
+    const template = PROVIDER_TEMPLATES[selectedType]
+    setName(template.name)
+    setBaseUrl(template.baseUrl)
+    setModelId(template.modelId)
+    setApiKey('')
+    nameRef.current?.focus()
+  }, [selectedType])
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     if (name.trim() && baseUrl.trim() && modelId.trim()) {
       onAdd({
         name: name.trim(),
@@ -46,10 +44,10 @@ export function AddProviderDialog({ onClose, onAdd }: AddProviderDialogProps) {
         modelId: modelId.trim(),
         apiKey: apiKey.trim(),
         type: selectedType,
-      });
-      onClose();
+      })
+      onClose()
     }
-  };
+  }
 
   return (
     <>
@@ -168,5 +166,5 @@ export function AddProviderDialog({ onClose, onAdd }: AddProviderDialogProps) {
         </div>
       </div>
     </>
-  );
+  )
 }

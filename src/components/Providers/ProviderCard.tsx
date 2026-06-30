@@ -1,30 +1,28 @@
-import React, { useState } from 'react';
-import { AIProvider } from '../../types/providers';
-import { cn } from '../../utils/cn';
-import { 
-  ProviderIcon, KeyIcon, GlobeIcon, ModelIcon, ToggleIcon, 
-  TestIcon, DeleteIcon, CheckIcon, AlertIcon 
-} from '../Icons/ProviderIcons';
+import { useState } from 'react'
+import { AIProvider } from '../../types/providers'
+import { cn } from '../../utils/cn'
+import { ProviderIcon, KeyIcon, GlobeIcon, ModelIcon, AlertIcon, CheckIcon, DeleteIcon, TestIcon, ToggleIcon } from '../Icons/ProviderIcons'
+import { cn } from '../../utils/cn'
 
 interface ProviderCardProps {
-  provider: AIProvider;
-  index: number;
-  isEditing: boolean;
-  onUpdate: (id: string, updates: Partial<AIProvider>) => void;
-  onTest: (id: string) => Promise<void>;
-  onDelete: (id: string) => void;
-  onToggleEdit: (id: string) => void;
+  provider: AIProvider
+  index: number
+  isEditing: boolean
+  onUpdate: (id: string, updates: Partial<AIProvider>) => void
+  onTest: (id: string) => Promise<void>
+  onDelete: (id: string) => void
+  onToggleEdit: (id: string) => void
 }
 
 export function ProviderCard({ provider, index, isEditing, onUpdate, onTest, onDelete, onToggleEdit }: ProviderCardProps) {
-  const [showKey, setShowKey] = useState(false);
-  const [testing, setTesting] = useState(false);
+  const [testing, setTesting] = useState(false)
+  const [showKey, setShowKey] = useState(false)
 
   const handleTest = async () => {
-    setTesting(true);
-    await onTest(provider.id);
-    setTesting(false);
-  };
+    setTesting(true)
+    await onTest(provider.id)
+    setTesting(false)
+  }
 
   if (isEditing) {
     return (
@@ -97,15 +95,22 @@ export function ProviderCard({ provider, index, isEditing, onUpdate, onTest, onD
                 value={provider.apiKey}
                 onChange={e => onUpdate(provider.id, { apiKey: e.target.value })}
                 className="input pr-12"
-                placeholder="sk-... or leave empty for Ollama"
+                placeholder={provider.type === 'ollama' ? 'Not required for Ollama' : 'sk-...'}
+                disabled={provider.type === 'ollama'}
               />
-              <button
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-sm"
-              >
-                {showKey ? '🙈' : '👁️'}
-              </button>
+              {provider.type !== 'ollama' && (
+                <button
+                  type="button"
+                  onClick={() => setShowKey(!showKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-sm"
+                >
+                  {showKey ? '🙈' : '👁️'}
+                </button>
+              )}
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {provider.type === 'ollama' ? 'Ollama runs locally without an API key' : 'Your API key is stored locally and never shared'}
+            </p>
           </div>
 
           <div className="flex items-center gap-4 pt-2 border-t border-dark-border">
@@ -156,10 +161,6 @@ export function ProviderCard({ provider, index, isEditing, onUpdate, onTest, onD
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium text-gray-100 truncate">{provider.name}</span>
-            <span className={cn(
-              'w-2 h-2 rounded-full',
-              provider.enabled ? 'bg-green-500' : 'bg-gray-600'
-            )} />
             <span className="text-xs px-2 py-0.5 bg-dark-bg rounded text-gray-400 font-mono">{provider.type.toUpperCase()}</span>
           </div>
           <div className="text-xs text-gray-500 flex items-center gap-2">

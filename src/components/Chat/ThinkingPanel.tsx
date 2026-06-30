@@ -1,9 +1,8 @@
-import React from 'react'
 import { cn } from '../../utils/cn'
 import { Brain } from 'lucide-react'
 
 interface ThinkingPanelProps {
-  thinking: string;
+  thinking: string
 }
 
 export function ThinkingPanel({ thinking }: ThinkingPanelProps) {

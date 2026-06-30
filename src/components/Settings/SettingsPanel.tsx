@@ -1,34 +1,31 @@
-import { useState } from 'react';
-import { useConfig } from '../../context/ConfigContext';
-import { useBackend } from '../../hooks/useBackend';
-import { cn } from '../../utils/cn';
-import { X, Save, FolderOpen, Key, Brain, SlidersHorizontal, ProviderIcon } from '../Icons/ProviderIcons';
-import { invoke } from '@tauri-apps/api/core';
+import { useConfig } from '../../context/ConfigContext'
+import { useBackend } from '../../hooks/useBackend'
+import { cn } from '../../utils/cn'
+import { X, Save, FolderOpen, Brain, SlidersHorizontal } from '../Icons/ProviderIcons'
+import { invoke } from '@tauri-apps/api/core'
+import { useState } from 'react'
 
 export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { config, updateConfig } = useConfig();
-  const { health } = useBackend();
-  const [testWorkspace, setTestWorkspace] = useState(config.workspace);
-  const [apiKey, setApiKey] = useState(config.cloudApiKey || '');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const { config, updateConfig } = useConfig()
+  const { health } = useBackend()
+  const [testWorkspace, setTestWorkspace] = useState(config.workspace)
+  const [apiKey, setApiKey] = useState(config.cloudApiKey || '')
+  const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
-    setSaving(true);
+    setSaving(true)
     updateConfig({ 
       workspace: testWorkspace,
       cloudApiKey: apiKey || undefined,
-    });
+    })
     try {
-      await invoke('update_config', { config: { workspace: testWorkspace } });
+      await invoke('update_config', { config: { workspace: testWorkspace } })
     } catch (e) {
-      console.error('Failed to save config to backend:', e);
+      console.error('Failed to save config to backend:', e)
     }
-    setSaving(false);
-    onClose();
-  };
-
-  if (!isOpen) return null;
+    setSaving(false)
+    onClose()
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -36,7 +33,7 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
       <div className="relative card w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-slide-up">
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-dark-border sticky top-0 bg-dark-surface z-10 py-4">
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            <SlidersHorizontal className="w-5 h-5" />
+            <SlidersHorizontal className="w-5 h-5 text-primary-500" />
             Settings
           </h2>
           <button onClick={onClose} className="btn-ghost p-2">
@@ -129,10 +126,10 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 <button
                   onClick={async () => {
                     try {
-                      const path = await invoke('pick_folder');
-                      if (path) setTestWorkspace(path);
+                      const path = await invoke('pick_folder')
+                      if (path) setTestWorkspace(path as string)
                     } catch (e) {
-                      console.error('Failed to pick folder:', e);
+                      console.error('Failed to pick folder:', e)
                     }
                   }}
                   className="btn-secondary"
@@ -184,5 +181,5 @@ export function SettingsPanel({ isOpen, onClose }: { isOpen: boolean; onClose: (
         </div>
       </div>
     </div>
-  );
+  )
 }

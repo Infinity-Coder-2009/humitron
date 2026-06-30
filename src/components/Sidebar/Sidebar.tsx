@@ -1,16 +1,17 @@
-import React from 'react'
-import { useSessions } from '../../context/SessionContext'
 import { useConfig } from '../../context/ConfigContext'
+import { useSessions } from '../../context/SessionContext'
+import { cn } from '../../utils/cn'
 import { Plus, Sun, Moon, Monitor } from 'lucide-react'
 import { SessionItem } from './SessionItem'
 import { NewSessionDialog } from './NewSessionDialog'
+import { useState } from 'react'
 
 export function Sidebar() {
   const { sessions, currentSession, createSession, deleteSession, setCurrentSession, renameSession } = useSessions()
   const { config, updateConfig } = useConfig()
-  const [showNewSession, setShowNewSession] = React.useState(false)
-  const [editingSession, setEditingSession] = React.useState<string | null>(null)
-  const [editName, setEditName] = React.useState('')
+  const [showNewSession, setShowNewSession] = useState(false)
+  const [editingSession, setEditingSession] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
 
   const handleThemeToggle = () => {
     const themes: ('dark' | 'light' | 'system')[] = ['dark', 'light', 'system']
@@ -28,7 +29,7 @@ export function Sidebar() {
   }
 
   return (
-    <div className="w-flex flex flex-col h-full bg-dark-surface border-r border-dark-border">
+    <div className="w-64 flex flex-col h-full bg-dark-surface border-r border-dark-border">
       <div className="p-4 border-b border-dark-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center">
@@ -56,7 +57,7 @@ export function Sidebar() {
           </div>
         ) : (
           <div className="space-y-1">
-            {sessions.map(session => (
+            {sessions.map((session) => (
               <SessionItem
                 key={session.id}
                 session={session}
@@ -120,7 +121,7 @@ export function Sidebar() {
             />
             <div className="flex justify-end gap-2">
               <button onClick={() => { setEditingSession(null); setEditName('') }} className="btn-secondary">Cancel</button>
-              <button 
+              <button
                 onClick={() => { renameSession(editingSession, editName); setEditingSession(null); setEditName('') }}
                 className="btn-primary"
               >Save</button>
