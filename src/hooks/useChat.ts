@@ -68,11 +68,8 @@ export function useChat({
               startTime: new Date(),
             }
             onMessageUpdate(assistantMessageId, { 
-              toolCalls: [...(onMessageUpdate.toString().includes('toolCalls') ? [] : []), toolCall] 
+              toolCalls: [toolCall] 
             })
-            setTimeout(() => {
-              onToolCallUpdate(assistantMessageId, toolCall.id, { status: 'running' })
-            }, 0)
             break
           
           case 'tool_result':

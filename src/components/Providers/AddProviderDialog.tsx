@@ -36,6 +36,7 @@ export function AddProviderDialog({ onClose, onAdd }: AddProviderDialogProps) {
   }, [selectedType])
 
   const handleSubmit = (e: React.FormEvent) => {
+    => {
     e.preventDefault()
     if (name.trim() && baseUrl.trim() && modelId.trim()) {
       onAdd({

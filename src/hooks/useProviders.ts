@@ -7,6 +7,7 @@ const STORAGE_KEY = 'humitron-providers'
 export function useProviders() {
   const [providers, setProviders] = useState<AIProvider[]>([])
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   // Load providers from localStorage on mount
   const loadProviders = useCallback(() => {
@@ -217,11 +218,7 @@ export function useProviders() {
     toggleEdit,
     addProvider,
     getActiveProvider,
+    editingId,
+    setEditingId,
   }
-}
-
-// Need to add setEditingId state
-function useProviders() {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  // ... rest of the hook
 }
