@@ -179,5 +179,6 @@ export const ProviderIcon: React.FC<{ type: string; className?: string }> = ({ t
   }
 };
 
-// Export Brain as alias for BrainIcon
+// Export aliases for backward compatibility
 export const Brain = BrainIcon;
+export const FolderOpen = FolderOpenIcon;
