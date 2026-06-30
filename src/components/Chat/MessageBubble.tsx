@@ -1,22 +1,17 @@
-import React from 'react'
-import { Message } from '../../types'
-import { formatRelativeTime } from '../../utils/helpers'
 import { cn } from '../../utils/cn'
+import { Message } from '../../types'
+import { Copy, Loader2 } from 'lucide-react'
 import { ToolCallCard } from './ToolCallCard'
 import { ThinkingPanel } from './ThinkingPanel'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
-import { Copy, Check } from 'lucide-react'
+import { useState } from 'react'
 
 interface MessageBubbleProps {
-  message: Message;
-  isStreaming?: boolean;
+  message: Message
+  isStreaming?: boolean
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === 'user'
-  const [copied, setCopied] = React.useState(false)
+export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+  const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content)
@@ -24,58 +19,75 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const isAssistant = message.role === 'assistant'
+  const isUser = message.role === 'user'
+  const isSystem = message.role === 'system'
+
   return (
     <div className={cn(
-      'message-bubble relative group',
-      isUser ? 'message-user' : 'message-assistant'
+      'flex gap-3 animate-slide-up',
+      isUser && 'flex-row-reverse',
+      isSystem && 'justify-center'
     )}>
-      <div className="flex flex-col gap-2">
-        {!isUser && (
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="font-mono text-primary-400">ASSISTANT</span>
-            <span className="text-gray-600">{formatRelativeTime(message.timestamp)}</span>
-          </div>
-        )}
-        
-        <div className="prose prose-invert dark:prose-dark max-w-none">
-          <ReactMarkdown 
-            remarkPlugins={[remarkGfm]} 
-            rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
-            components={{
-              code: ({ children, ...props }) => (
-                <pre className="bg-black/50 rounded-lg p-4 overflow-x-auto"><code {...props}>{children}</code></pre>
-              ),
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
+      {!isUser && (
+        <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center flex-shrink-0">
+          <span className="text-white text-xs font-bold">H</span>
         </div>
-
+      )}
+      <div className={cn(
+        'max-w-[75%] flex flex-col gap-2',
+        isUser ? 'items-end' : 'items-start'
+      )}>
+        <div className={cn(
+          'relative rounded-2xl px-4 py-3',
+          isUser ? 'bg-primary-500 text-white rounded-tr-none' :
+          isAssistant ? 'bg-dark-elevated text-gray-100 rounded-tl-none' :
+          'bg-yellow-500/20 text-yellow-300 rounded'
+        )}>
+          {isStreaming && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 text-xs text-gray-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Streaming...
+            </div>
+          )}
+          <div className="whitespace-pre-wrap break-words">
+            {message.content}
+          </div>
+          {!isStreaming && message.content && (
+            <button
+              onClick={handleCopy}
+              className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition-opacity text-xs p-1 text-gray-500 hover:text-white"
+              aria-label="Copy message"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          )}
+        </div>
         {message.thinking && (
           <ThinkingPanel thinking={message.thinking} />
         )}
-
         {message.toolCalls && message.toolCalls.length > 0 && (
-          <div className="space-y-2 mt-2 border-t border-dark-border pt-2">
-            {message.toolCalls.map((toolCall) => (
-              <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+          <div className={cn('mt-2 space-y-2', isUser ? 'items-end' : 'items-start')}>
+            {message.toolCalls.map((toolCall, index) => (
+              <ToolCallCard key={index} toolCall={toolCall} />
             ))}
           </div>
         )}
-
-        <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={handleCopy}
-            className="btn-ghost p-1.5 text-xs hover:bg-dark-elevated"
-            title="Copy message"
-          >
-            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-          </button>
-          {isUser && (
-            <span className="text-xs text-gray-500">{formatRelativeTime(message.timestamp)}</span>
-          )}
-        </div>
+        {message.metadata && (
+          <div className={cn('mt-2 text-xs text-gray-500 flex items-center gap-2', isUser ? 'justify-end' : '')}>
+            <span>{message.metadata.model}</span>
+            <span>•</span>
+            <span>{message.metadata.tokens} tokens</span>
+            <span>•</span>
+            <span>{(message.metadata.latency / 1000).toFixed(1)}s</span>
+          </div>
+        )}
       </div>
+      {isUser && (
+        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+          <span className="text-white text-xs font-bold">U</span>
+        </div>
+      )}
     </div>
   )
 }

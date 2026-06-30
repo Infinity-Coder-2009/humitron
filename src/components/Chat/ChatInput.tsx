@@ -1,84 +1,119 @@
-import React, { useRef, useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { cn } from '../../utils/cn'
-import { Send, X } from 'lucide-react'
+import { Send, Mic, MicOff, Paperclip, X } from 'lucide-react'
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
-  disabled?: boolean;
-  streaming?: boolean;
-  onStop?: () => void;
+  onSend: (text: string) => void
+  streaming: boolean
+  onStop: () => void
+  disabled?: boolean
 }
 
-export function ChatInput({ onSend, disabled, streaming, onStop }: ChatInputProps) {
-  const [value, setValue] = useState('')
+export function ChatInput({ onSend, streaming, onStop, disabled }: ChatInputProps) {
+  const [text, setText] = useState('')
+  const [isRecording, setIsRecording] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (value.trim() && !disabled) {
-      onSend(value.trim())
-      setValue('')
-      textareaRef.current?.focus()
+    if (text.trim() && !streaming) {
+      onSend(text.trim())
+      setText('')
     }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSubmit(e)
+      if (text.trim() && !streaming) {
+        onSend(text.trim())
+        setText('')
+      }
     }
   }
 
   const adjustHeight = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const textarea = e.target
     textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px'
+  }
+
+  if (streaming) {
+    return (
+      <form onSubmit={handleSubmit} className="border-t border-dark-border p-4">
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <div className="bg-dark-elevated rounded-lg p-3 text-gray-500 text-sm animate-pulse">
+              AI is responding...
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onStop}
+            className="btn-secondary flex items-center gap-2"
+            disabled={disabled}
+          >
+            <X className="w-4 h-4" />
+            Stop
+          </button>
+        </div>
+      </form>
+    )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full">
-      <div className="flex items-end gap-2 p-4 bg-dark-surface border-t border-dark-border">
-        <div className="flex-1 relative">
+    <form onSubmit={handleSubmit} className="border-t border-dark-border p-4">
+      <div className="flex items-end gap-3">
+        <div className="relative flex-1">
           <textarea
             ref={textareaRef}
-            value={value}
+            value={text}
             onChange={e => {
-              setValue(e.target.value)
+              setText(e.target.value)
               adjustHeight(e)
             }}
             onKeyDown={handleKeyDown}
-            placeholder={streaming ? 'Agent is thinking...' : 'Message Humitron... (Shift+Enter for new line)'}
-            disabled={disabled || streaming}
-            className={cn(
-              'input pr-12 resize-none',
-              'min-h-[52px] max-h-[200px]',
-              disabled && 'opacity-50'
-            )}
+            placeholder="Type a message... (Shift+Enter for new line)"
+            className="input resize-none min-h-[44px] max-h-[200px] pr-12"
+            disabled={disabled}
             rows={1}
-            spellCheck={false}
           />
           <div className="absolute bottom-2 right-2 flex items-center gap-1">
-            {!streaming ? (
-              <button
-                type="submit"
-                disabled={!value.trim() || disabled}
-                className="btn-primary p-2 rounded-full disabled:opacity-50"
-                aria-label="Send message"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onStop}
-                className="btn-danger p-2 rounded-full"
-                aria-label="Stop generation"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsRecording(!isRecording)}
+              className={cn(
+                'p-2 rounded-lg transition-colors',
+                isRecording ? 'bg-red-500/20 text-red-500' : 'text-gray-500 hover:text-white'
+              )}
+              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+            >
+              {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+            <button
+              type="button"
+              className="p-2 text-gray-500 hover:text-white transition-colors"
+              aria-label="Attach file"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
           </div>
         </div>
+        <button
+          type="submit"
+          disabled={!text.trim() || disabled}
+          className={cn(
+            'btn-primary flex items-center justify-center gap-2 h-[44px] px-4 transition-all',
+            !text.trim() && 'opacity-50 cursor-not-allowed'
+          )}
+          aria-label="Send message"
+        >
+          <Send className="w-5 h-5" />
+        </button>
       </div>
     </form>
   )

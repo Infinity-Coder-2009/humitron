@@ -1,74 +1,62 @@
-import React, { useRef, useEffect } from 'react'
-import { Message } from '../../types'
 import { cn } from '../../utils/cn'
+import { Message } from '../../types'
 import { MessageBubble } from './MessageBubble'
 
 interface ChatWindowProps {
-  messages: Message[];
-  streaming: boolean;
-  currentMessageId: string | null;
-  onScrollToBottom: () => void;
+  messages: Message[]
+  streaming: boolean
+  currentMessageId: string | null
+  onScrollToBottom: () => void
 }
 
-export function ChatWindow({ messages, streaming, currentMessageId }: ChatWindowProps) {
+export function ChatWindow({ messages, streaming, currentMessageId, onScrollToBottom }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [scrolledUp, setScrolledUp] = useState(false)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streaming])
 
-  const handleWheel = (e: React.WheelEvent) => {
-    if (containerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = containerRef.current
-      const atBottom = scrollHeight - scrollTop - clientHeight < 50
-      if (atBottom && e.deltaY > 0) {
-        e.preventDefault()
-      }
-    }
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+    const atBottom = scrollHeight - scrollTop - clientHeight < 50
+    setScrolledUp(!atBottom)
+  }
+
+  if (messages.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center text-gray-500">
+          <p className="text-lg mb-2">Start a conversation</p>
+          <p className="text-sm">Send a message to begin</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div 
-      ref={containerRef}
+    <div
       className="flex-1 overflow-y-auto p-4 space-y-4"
-      onWheel={handleWheel}
+      onScroll={handleScroll}
     >
       {messages.map((message) => (
-        <div key={message.id} className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
-          <MessageBubble message={message} />
-        </div>
+        <MessageBubble
+          key={message.id}
+          message={message}
+          isStreaming={streaming && message.id === currentMessageId}
+        />
       ))}
-      
-      {currentMessageId && (
-        <div className="flex justify-start">
-          <MessageBubble 
-            message={{ 
-              id: currentMessageId, 
-              role: 'assistant', 
-              content: '', 
-              timestamp: new Date(),
-              toolCalls: [],
-            }} 
-            isStreaming 
-          />
-        </div>
-      )}
-
-      {streaming && (
-        <div className="flex justify-start animate-pulse-soft">
-          <div className="message-bubble bg-dark-elevated border border-dark-border flex items-center gap-2 px-4 py-2">
-            <div className="flex gap-1">
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{animationDelay: '100ms'}}></div>
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></div>
-            </div>
-            <span className="text-gray-400 text-sm">Thinking...</span>
-          </div>
-        </div>
-      )}
-
       <div ref={messagesEndRef} />
+      {scrolledUp && (
+        <button
+          onClick={onScrollToBottom}
+          className="fixed bottom-20 right-4 btn-primary rounded-full p-3 shadow-lg animate-bounce-in"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
