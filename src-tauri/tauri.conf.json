@@ -46,9 +46,6 @@
     "category": "DeveloperTool",
     "shortDescription": "Local-first AI Agent",
     "longDescription": "Humitron is a local-first AI agent that runs on your terms. Uses Ollama for local inference, with optional cloud bursting.",
-    "deb": {
-      "depends": ["libwebkit2gtk-4.1-0", "libayatana-appindicator3-1", "librsvg2-common"]
-    },
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.15",
