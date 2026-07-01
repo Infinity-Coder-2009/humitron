@@ -647,7 +647,7 @@ Provide a brief summary:"""
             }
             self.messages = self.messages[:keep_start] + [summary_msg] + self.messages[-keep_end:]
             
-            console.print(f"[dim]📝 Conversation summarized (tokens reduced)[/dim]")
+            console.print(f"[dim] Conversation summarized (tokens reduced)[/dim]")
         except Exception as e:
             logger.warning(f"Failed to summarize conversation: {e}")
 
@@ -749,10 +749,10 @@ IMPORTANT: If you need to call a tool, respond ONLY with the JSON object above. 
         """Print tool result in green (success) or red (error)."""
         if result.success:
             style = "green"
-            title = "✅ Tool Output"
+            title = "Tool Output"
         else:
             style = "red"
-            title = "❌ Tool Error"
+            title = "Tool Error"
         
         console.print(Panel(
             Text(result.output or result.error or "(no output)", style=style),
@@ -765,7 +765,7 @@ IMPORTANT: If you need to call a tool, respond ONLY with the JSON object above. 
         """Print final answer in bold white."""
         console.print(Panel(
             Markdown(answer),
-            title="💬 Final Answer",
+            title="Final Answer",
             border_style="green",
             padding=(1, 2)
         ))
@@ -776,7 +776,7 @@ IMPORTANT: If you need to call a tool, respond ONLY with the JSON object above. 
         """Print error in red."""
         console.print(Panel(
             Text(error, style="bold red"),
-            title="⚠️ Error",
+            title="Error",
             border_style="red",
             padding=(1, 2)
         ))
@@ -849,7 +849,7 @@ IMPORTANT: If you need to call a tool, respond ONLY with the JSON object above. 
         
         console.print(Panel(
             Text(user_prompt, style="bold white"),
-            title="📝 User Prompt",
+            title="User Prompt",
             border_style="blue",
             padding=(1, 2)
         ))
@@ -895,7 +895,7 @@ IMPORTANT: If you need to call a tool, respond ONLY with the JSON object above. 
             if not tool_calls:
                 # But if it looks like malformed JSON, ask for correction
                 if content.strip().startswith("{") and "tool_calls" not in content:
-                    console.print("[yellow]⚠️ Response looks like JSON but couldn't parse. Asking for correction...[/yellow]")
+                    console.print("[yellow] Response looks like JSON but couldn't parse. Asking for correction...[/yellow]")
                     content = self._handle_json_parse_error()
                     tool_calls = self._parse_tool_calls(content)
                     if not tool_calls:
@@ -941,7 +941,7 @@ def run_chat_loop(agent: ReActAgent) -> None:
     """Run continuous chat loop until user types 'exit'."""
     console.print(Panel(
         Markdown("""
-# 🤖 Humitron - Local AI Agent
+# Humitron - Local AI Agent
 
 **Commands:**
 - Type your question or task
@@ -959,13 +959,13 @@ def run_chat_loop(agent: ReActAgent) -> None:
             user_input = Prompt.ask("\n[bold cyan]You[/bold cyan]")
             
             if user_input.lower().strip() in ("exit", "quit"):
-                console.print("[yellow]👋 Goodbye![/yellow]")
+                console.print("[yellow]Goodbye![/yellow]")
                 break
             
             if user_input.lower().strip() == "clear":
                 agent.memory = ConversationMemory()
                 agent.memory.add_message("system", agent.system_prompt)
-                console.print("[green]✨ Conversation history cleared.[/green]")
+                console.print("[green]Conversation history cleared.[/green]")
                 continue
             
             if user_input.lower().strip() == "config":
@@ -1041,7 +1041,7 @@ def main():
             console.print("[yellow]Make sure Ollama is running: [bold]ollama serve[/bold][/yellow]")
             sys.exit(1)
         except KeyboardInterrupt:
-            console.print("\n[yellow]👋 Goodbye![/yellow]")
+            console.print("\n[yellow] Goodbye![/yellow]")
             sys.exit(0)
         except Exception as e:
             console.print(f"[bold red]Error:[/bold red] {e}")
