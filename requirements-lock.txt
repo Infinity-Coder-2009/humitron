@@ -40,7 +40,7 @@ anyio==4.4.0
 certifi==2024.6.2
 click==8.1.7
 exceptiongroup==1.2.1
-h11==0.14.0
+h11==0.16.0
 httpcore==1.0.5
 idna==3.7
 iniconfig==2.0.0
