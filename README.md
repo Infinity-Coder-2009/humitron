@@ -4,7 +4,6 @@
 
 - **Runs 100% free on your own machine** — Uses Ollama for local inference
 - **Uses any model you want** — Ollama, OpenAI, Claude, Gemini, or OpenRouter
-- **Bursts into cloud when you need extra power** — Pay only for what you use
 - **No subscriptions. No lock-in.** — Just an AI that works for you
 - **Desktop native** — Built for macOS, Windows, and Linux
 
